@@ -14,6 +14,7 @@ import Joi from "joi";
 import "dotenv/config";
 import { sendOneTimePassword } from "./telegramOTP.js";
 import { credentialsClients } from "../../types.js";
+import { catchAsync } from "../../middleware/catchAsync.js";
 
 let otp: number;
 const secret = process.env.JWT_SECRET_CLIENTS as string;
@@ -23,8 +24,8 @@ const signAccessToken = (login: string) =>
     expiresIn: "1 day",
   });
 
-export const authHandler: RequestHandler = async (req, res, next) => {
-  try {
+export const authHandler: RequestHandler = catchAsync(
+  async (req, res, next) => {
     let user;
     const body: credentialsClients = req.body;
     if (body.type == "registration") {
@@ -73,11 +74,10 @@ export const authHandler: RequestHandler = async (req, res, next) => {
           });
         }
       } else {
-        user = await userValidation("clients", body.login, body.password);
         if (req.body.otp == (await getOTPvalueByLogin(body.login))) {
           await setResendOTPavailable(body.login);
-          res.status(user.statusCode).send({
-            message: user.message,
+          res.status(200).send({
+            message: "Successfully logged in",
             access_token: signAccessToken(body.login),
           });
         } else {
@@ -91,74 +91,35 @@ export const authHandler: RequestHandler = async (req, res, next) => {
         message: "Bad Request",
       });
     }
-  } catch (err) {
-    res.status(400).send({
-      message: "Something went wrong",
-    });
   }
-};
+);
 
-export const resendOTP: RequestHandler = async (req, res, next) => {
-  try {
-    const body: credentialsClients = req.body;
-    const user = await userValidation("clients", body.login, body.password);
-    if (user.statusCode == 200) {
-      if (await checkIfresendOTPavailable(body.login)) {
-        otp = sendOneTimePassword(body.login);
+export const resendOTP: RequestHandler = catchAsync(async (req, res, next) => {
+  const body: credentialsClients = req.body;
+  const user = await userValidation("clients", body.login, body.password);
+  if (user.statusCode == 200) {
+    if (await checkIfresendOTPavailable(body.login)) {
+      otp = sendOneTimePassword(body.login);
+      await updateOTPbyLogin(body.login, otp);
+      await setResendOTPinavailable(body.login);
+      setTimeout(async () => {
+        otp = 0;
         await updateOTPbyLogin(body.login, otp);
-        await setResendOTPinavailable(body.login);
-        setTimeout(async () => {
-          otp = 0;
-          await updateOTPbyLogin(body.login, otp);
-        }, 1000 * 180);
-        res.status(200).send({
-          message: "OTP is resent to Telegram",
-        });
-      } else {
-        res.status(403).send({
-          message: " You can resend OTP just once",
-        });
-      }
-    } else {
-      res.status(user.statusCode).send({
-        message: user.message,
-      });
-    }
-  } catch (err) {
-    res.status(400).send({
-      message: "Something went wrong",
-    });
-  }
-};
-
-export const refresh: RequestHandler = (req, res, next) => {
-  try {
-    let refreshToken: string;
-    if (
-      req.headers.authorization &&
-      req.headers.authorization.startsWith("Bearer")
-    ) {
-      refreshToken = req.headers.authorization.split(" ")[1];
-      const decoded: jsonwebtoken.JwtPayload = jsonwebtoken.verify(
-        refreshToken,
-        secret
-      ) as jsonwebtoken.JwtPayload;
-      const newAccessToken: string = signAccessToken(decoded.login);
-      res.status(201).json({
-        status: "success",
-        new_access: newAccessToken,
+      }, 1000 * 180);
+      res.status(200).send({
+        message: "OTP is resent to Telegram",
       });
     } else {
       res.status(403).send({
-        message: "Authorization header is not present",
+        message: " You can resend OTP just once",
       });
     }
-  } catch (err) {
-    res.status(403).send({
-      message: "Forbidden",
+  } else {
+    res.status(user.statusCode).send({
+      message: user.message,
     });
   }
-};
+});
 
 export const extractLoginFromJWT = (token: string) => {
   const decoded: jsonwebtoken.JwtPayload = jsonwebtoken.decode(
