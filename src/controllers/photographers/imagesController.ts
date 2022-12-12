@@ -1,23 +1,43 @@
-import { extractLoginFromJWT } from "./authController.js";
+import { extractLoginFromJWT } from "../../utils/jwt.js";
 import { RequestHandler } from "express";
-
-import { ifAlbumExists } from "../../db/databaseApi.js";
+import { authPhotographers } from "../../utils/authMiddleware.js";
+import Albums from "../../db/albums/albumsApi.js";
 import { connectS3 } from "../../s3/s3connection.js";
 import { listFolderObjects } from "../../s3/s3api.js";
-import { catchAsync } from "../../middleware/catchAsync.js";
+import { catchAsync } from "../../utils/catchAsync.js";
+import Controller from "../Controller.js";
 
 const s3 = connectS3();
-export const uploadImages: RequestHandler = catchAsync(
-  async (req, res, next) => {
+
+const bucketName = process.env.BUCKET_NAME_S3;
+
+class ImagesController extends Controller {
+  public readonly path: string;
+
+  public constructor(path: string, public readonly albums: Albums) {
+    super("");
+    this.path = path;
+    this.initializeRoutes();
+  }
+
+  public initializeRoutes = () => {
+    this.router.get("/:album", authPhotographers, catchAsync(this.listImages));
+    this.router.post(
+      "/:album/upload",
+      authPhotographers,
+      catchAsync(this.uploadImages)
+    );
+  };
+
+  public uploadImages: RequestHandler = catchAsync(async (req, res) => {
     const token = req.headers.authorization!.split(" ")[1];
     const login: string = extractLoginFromJWT(token);
     if (login) {
       const albumName = req.params.album;
-      const bucketName = process.env.BUCKET_NAME_S3;
       const folderName = `albums/${login}-${albumName}/`;
       const folderNameWatermarked = `albums-watermarked/${login}-${albumName}/`;
 
-      if (await ifAlbumExists(login, albumName)) {
+      if (await this.albums.ifAlbumExists(login, albumName)) {
         let metaName = "";
         // if (JSON.parse(Object.keys(req.body)[0]).metadata.name === "") {
         if (req.body.metadata.name === "") {
@@ -27,7 +47,7 @@ export const uploadImages: RequestHandler = catchAsync(
           // metaName = JSON.parse(Object.keys(req.body)[0]).metadata.name;
           metaName = req.body.metadata.name;
         }
-        var metaCaption = "";
+        let metaCaption = "";
         // if (!JSON.parse(Object.keys(req.body)[0]).metadata.caption) {
         if (!req.body.metadata.caption) {
           metaCaption = "";
@@ -35,7 +55,7 @@ export const uploadImages: RequestHandler = catchAsync(
           // metaCaption = JSON.parse(Object.keys(req.body)[0]).metadata.caption;
           metaCaption = req.body.metadata.caption;
         }
-        let tag1 = "fileName=" + metaName;
+        const tag1 = "fileName=" + metaName;
         let tag2 = "";
         if (metaCaption) {
           tag2 = "fileDescription=" + metaCaption;
@@ -99,35 +119,35 @@ export const uploadImages: RequestHandler = catchAsync(
         message: "Invalid login",
       });
     }
-  }
-);
+  });
 
-export const listImages: RequestHandler = catchAsync(async (req, res, next) => {
-  const token = req.headers.authorization!.split(" ")[1];
-  const login: string = extractLoginFromJWT(token);
-  if (login) {
-    const albumName = req.params.album;
-
-    if (await ifAlbumExists(login, albumName)) {
-      const bucketName = process.env.BUCKET_NAME_S3 as string;
-      const folderName = `albums-watermarked/${login}-${albumName}`;
-      const params = {
-        Bucket: bucketName,
-        Prefix: folderName,
-      };
-      const contentResponse = await listFolderObjects(params);
-      res.status(200).send({
-        message: "done!",
-        content: contentResponse,
-      });
+  public listImages: RequestHandler = catchAsync(async (req, res) => {
+    const token = req.headers.authorization!.split(" ")[1];
+    const login: string = extractLoginFromJWT(token);
+    if (login) {
+      const albumName = req.params.album;
+      if (await this.albums.ifAlbumExists(login, albumName)) {
+        const folderName = `albums-watermarked/${login}-${albumName}`;
+        const params = {
+          Bucket: bucketName,
+          Prefix: folderName,
+        };
+        const contentResponse = await listFolderObjects(params);
+        res.status(200).send({
+          message: "done!",
+          content: contentResponse,
+        });
+      } else {
+        res.status(404).send({
+          message: "Album not found",
+        });
+      }
     } else {
-      res.status(404).send({
-        message: "Album not found",
+      res.status(403).send({
+        message: "Invalid login",
       });
     }
-  } else {
-    res.status(403).send({
-      message: "Invalid login",
-    });
-  }
-});
+  });
+}
+
+export default ImagesController;

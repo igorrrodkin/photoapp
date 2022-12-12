@@ -1,37 +1,54 @@
 import { RequestHandler } from "express";
-import { extractLoginFromJWT } from "./authController.js";
-import { availableAlbums, ifAlbumExists } from "../../db/databaseApi.js";
+import { extractLoginFromJWT } from "../../utils/jwt.js";
+import Albums from "../../db/albums/albumsApi.js";
 import { listFolderObjects } from "../../s3/s3api.js";
-import { catchAsync } from "../../middleware/catchAsync.js";
+import { catchAsync } from "../../utils/catchAsync.js";
+import Controller from "../Controller.js";
+import { authClients } from "../../utils/authMiddleware.js";
 
-export const getAvailableAlbums: RequestHandler = catchAsync(
-  async (req, res, next) => {
+class DashboardController extends Controller {
+  public readonly path: string;
+
+  public constructor(path: string, public readonly albums: Albums) {
+    super("");
+    this.path = path;
+    this.initializeRoutes();
+  }
+
+  public initializeRoutes = () => {
+    this.router.get("/", authClients, catchAsync(this.getAvailableAlbums));
+    this.router.get(
+      ":photographer/:album",
+      authClients,
+      catchAsync(this.listDashboardImages)
+    );
+  };
+
+  public getAvailableAlbums: RequestHandler = async (req, res) => {
     const token = req.headers.authorization!.split(" ")[1];
     const login = extractLoginFromJWT(token);
-    let content = await availableAlbums(login);
+    const content = await this.albums.availableAlbums(login);
     if (content) {
       const contentFiltered = content.map((item) => {
         return {
-          album: item.album_name,
+          album: item.albumName,
           photographer: item.login,
-          location: item.album_location,
+          location: item.albumLocation,
           datapicker: item.datapicker,
-          price: +item.price / 100 + "$",
+          price: +item.price! / 100 + "$",
         };
       });
       res.status(200).send({ content: contentFiltered });
     } else {
       res.status(200).send({ message: "You haven't access to any album" });
     }
-  }
-);
+  };
 
-export const listDashboardImages: RequestHandler = catchAsync(
-  async (req, res, next) => {
+  public listDashboardImages: RequestHandler = async (req, res) => {
     const albumName = req.params.album;
     const loginPhotographer = req.params.photographer;
-    if (await ifAlbumExists(loginPhotographer, albumName)) {
-      const bucketName = process.env.BUCKET_NAME_S3 as string;
+    if (await this.albums.ifAlbumExists(loginPhotographer, albumName)) {
+      const bucketName = process.env.BUCKET_NAME_S3;
       const folderName = `albums-watermarked/${loginPhotographer}-${albumName}/`;
       const params = {
         Bucket: bucketName,
@@ -47,5 +64,6 @@ export const listDashboardImages: RequestHandler = catchAsync(
         message: "Album not found",
       });
     }
-  }
-);
+  };
+}
+export default DashboardController;

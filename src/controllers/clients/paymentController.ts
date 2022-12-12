@@ -1,60 +1,86 @@
-import Stripe from "stripe";
 import { RequestHandler } from "express";
-
-import { availableAlbums } from "../../db/databaseApi.js";
-import { extractLoginFromJWT } from "./authController.js";
+import { authClients } from "../../utils/authMiddleware.js";
+import Albums from "../../db/albums/albumsApi.js";
+import { extractLoginFromJWT } from "../../utils/jwt.js";
 import { getObjectBody, listFolderObjects } from "../../s3/s3api.js";
-import { catchAsync } from "../../middleware/catchAsync.js";
-const secretAPIkey = process.env.STRIPE_SECRET as string;
+import { catchAsync } from "../../utils/catchAsync.js";
+import Controller from "../Controller.js";
+import { stripe } from "../../utils/payment.js";
 
-const stripe = new Stripe(secretAPIkey, {
-  apiVersion: "2022-11-15",
-  typescript: true,
-});
+const URL = process.env.DEV_URL;
 
-const URL = process.env.DEV_URL as string;
+class PaymentController extends Controller {
+  public readonly path: string;
 
-export const buyAlbum: RequestHandler = catchAsync(async (req, res, next) => {
-  const [photographer, album]: string[] = [
-    req.params.photographer,
-    req.params.album,
-  ];
-  const token = req.headers.authorization!.split(" ")[1];
-  const login = extractLoginFromJWT(token);
-  if (login) {
-    const albums = await availableAlbums(login);
+  public constructor(path: string, public readonly albums: Albums) {
+    super("");
+    this.path = path;
+    this.initializeRoutes();
+  }
 
-    const currentAlbum = albums.find((item) => {
-      return item.album_name == album && item.login == photographer;
-    });
-    if (currentAlbum) {
-      const session = await stripe.checkout.sessions.create({
-        line_items: [
-          {
-            price: currentAlbum.price_id,
-            quantity: 1,
-          },
-        ],
-        mode: "payment",
-        success_url: `${URL}/clients/dashboard/${photographer}/${album}/payment/success`,
-        cancel_url: `${URL}/clients/dashboard/${photographer}/${album}/payment/cancel`,
+  public initializeRoutes = () => {
+    this.router.get(
+      "/:photographer/:album/buy",
+      authClients,
+      catchAsync(this.buyAlbum)
+    );
+    this.router.get(
+      "/:photographer/:album/success",
+      authClients,
+      catchAsync(this.downloadImages)
+    );
+    this.router.get(
+      "/:photographer/:album/:photo/download",
+      authClients,
+      catchAsync(this.loadImage)
+    );
+    this.router.get(
+      "/:photographer/:album/cancel",
+      authClients,
+      this.cancelPayment
+    );
+  };
+
+  public buyAlbum: RequestHandler = async (req, res) => {
+    const [photographer, album]: string[] = [
+      req.params.photographer,
+      req.params.album,
+    ];
+    const token = req.headers.authorization!.split(" ")[1];
+    const login = extractLoginFromJWT(token);
+    if (login) {
+      const albums = await this.albums.availableAlbums(login);
+
+      const currentAlbum = albums.find((item) => {
+        return item.albumName == album && item.login == photographer;
       });
+      if (currentAlbum) {
+        const session = await stripe.checkout.sessions.create({
+          line_items: [
+            {
+              price: currentAlbum.priceId!,
+              quantity: 1,
+            },
+          ],
+          mode: "payment",
+          success_url: `${URL}/clients/dashboard/${photographer}/${album}/payment/success`,
+          cancel_url: `${URL}/clients/dashboard/${photographer}/${album}/payment/cancel`,
+        });
 
-      res.redirect(303, session.url!);
+        res.redirect(303, session.url!);
+      } else {
+        res.status(404).send({
+          message: "Album not found!",
+        });
+      }
     } else {
-      res.status(404).send({
-        message: "Album not found!",
+      res.status(403).send({
+        message: "invalid login",
       });
     }
-  } else {
-    res.status(403).send({
-      message: "invalid login",
-    });
-  }
-});
+  };
 
-export const downloadImages: RequestHandler = catchAsync(
-  async (req, res, next) => {
+  public downloadImages: RequestHandler = async (req, res) => {
     const album = req.params.album;
     const photographer = req.params.photographer;
     const params = {
@@ -75,35 +101,37 @@ export const downloadImages: RequestHandler = catchAsync(
         message: "Album not found or it is empty!",
       });
     }
-  }
-);
-
-export const loadImage: RequestHandler = catchAsync(async (req, res, next) => {
-  const album = req.params.album;
-  const photographer = req.params.photographer;
-  const image = req.params.photo;
-  const params = {
-    Bucket: "images-photo-app",
-    Prefix: `albums/${photographer}-${album}`,
   };
-  const arrayOfPhotoNames: (string | undefined)[] = await listFolderObjects(
-    params
-  );
 
-  if (arrayOfPhotoNames) {
-    res.setHeader("Content-disposition", `attachment;filename=${image}`);
-    res.setHeader("Content-Type", "image/*");
-    const imgBody = getObjectBody(params, image);
-    res.send(imgBody);
-  } else {
-    res.status(404).send({
-      message: "Album not found or it is empty!",
+  public loadImage: RequestHandler = async (req, res) => {
+    const album = req.params.album;
+    const photographer = req.params.photographer;
+    const image = req.params.photo;
+    const params = {
+      Bucket: "images-photo-app",
+      Prefix: `albums/${photographer}-${album}`,
+    };
+    const arrayOfPhotoNames: (string | undefined)[] = await listFolderObjects(
+      params
+    );
+
+    if (arrayOfPhotoNames) {
+      res.setHeader("Content-disposition", `attachment;filename=${image}`);
+      res.setHeader("Content-Type", "image/*");
+      const imgBody = getObjectBody(params, image);
+      res.send(imgBody);
+    } else {
+      res.status(404).send({
+        message: "Album not found or it is empty!",
+      });
+    }
+  };
+
+  public cancelPayment: RequestHandler = (req, res) => {
+    res.status(200).send({
+      message: "Payment is cancelled",
     });
-  }
-});
+  };
+}
 
-export const cancelPayment: RequestHandler = (req, res, next) => {
-  res.status(200).send({
-    message: "Payment is cancelled",
-  });
-};
+export default PaymentController;

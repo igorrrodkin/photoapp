@@ -1,20 +1,39 @@
 import { RequestHandler } from "express";
-import {
-  ifAlbumExists,
-  createAlbumDB,
-  listAlbums,
-  giveAccessToAlbum,
-} from "../../db/databaseApi.js";
-import { catchAsync } from "../../middleware/catchAsync.js";
+import Albums from "../../db/albums/albumsApi.js";
+import { catchAsync } from "../../utils/catchAsync.js";
 import { createProduct } from "../../utils/payment.js";
-import { extractLoginFromJWT } from "./authController.js";
-import { albumCreation } from "../../types.js";
+import { extractLoginFromJWT } from "../../utils/jwt.js";
+import { albumCreation, giveAccess } from "../../dtos/interfaces.js";
+import { authClients, authPhotographers } from "../../utils/authMiddleware.js";
+import Controller from "../Controller.js";
 
-export const createAlbum: RequestHandler = catchAsync(
-  async (req, res, next) => {
+class AlbumsController extends Controller {
+  public readonly path: string;
+
+  public constructor(path: string, public readonly albums: Albums) {
+    super("");
+    this.path = path;
+    this.initializeRoutes();
+  }
+
+  public initializeRoutes = () => {
+    this.router.get("/", authPhotographers, catchAsync(this.showAlbums));
+    this.router.post(
+      "/create",
+      authPhotographers,
+      catchAsync(this.createAlbum)
+    );
+    this.router.post(
+      "/:album/giveaccess",
+      authClients,
+      catchAsync(this.giveAccessToClients)
+    );
+  };
+
+  public createAlbum: RequestHandler = async (req, res) => {
     const content: albumCreation = req.body;
     // date format dd-mm-yyyy
-    const dateRegEx: RegExp = /[0-9]{2}\/[0-9]{2}\/[0-9]{4}/g;
+    const dateRegEx = /[0-9]{2}\/[0-9]{2}\/[0-9]{4}/g;
     if (!content.albumName || !content.location) {
       res.status(400).send({
         message: "Album name and location are required!",
@@ -27,7 +46,10 @@ export const createAlbum: RequestHandler = catchAsync(
       const token: string = req.headers.authorization!.split(" ")[1];
       const login: string | undefined = extractLoginFromJWT(token);
       if (login) {
-        const albumExists = await ifAlbumExists(login, content.albumName);
+        const albumExists = await this.albums.ifAlbumExists(
+          login,
+          content.albumName
+        );
         if (albumExists) {
           res.status(400).send({
             message: "Album with this name already exists!",
@@ -38,12 +60,12 @@ export const createAlbum: RequestHandler = catchAsync(
             content.albumName,
             content.price
           );
-          await createAlbumDB(
+          await this.albums.createAlbumDB(
             login,
             content.albumName,
             content.location,
             content.datapicker,
-            content.price,
+            JSON.stringify(content.price),
             priceData.id,
             productData.id
           );
@@ -57,51 +79,51 @@ export const createAlbum: RequestHandler = catchAsync(
         });
       }
     }
-  }
-);
+  };
 
-export const showAlbums: RequestHandler = catchAsync(async (req, res, next) => {
-  const token = req.headers.authorization!.split(" ")[1];
-  const login = extractLoginFromJWT(token);
-  if (login) {
-    const content = await listAlbums(login);
-    if (content.rowCount) {
-      const mappedContent = content.rows.map((item) => {
-        return {
-          album: item.album_name,
-          location: item.album_location,
-          datapicker: item.datapicker,
-          price: item.price / 100 + "$",
-        };
-      });
-      res.status(200).send({
-        content: mappedContent,
-      });
+  public showAlbums: RequestHandler = async (req, res) => {
+    const token = req.headers.authorization!.split(" ")[1];
+    const login = extractLoginFromJWT(token);
+    if (login) {
+      const content = await this.albums.listAlbums(login);
+      if (content.length) {
+        const mappedContent = content.map((item) => {
+          return {
+            album: item.album_name,
+            location: item.album_location,
+            datapicker: item.datapicker,
+            price: +item.price! / 100 + "$",
+          };
+        });
+        res.status(200).send({
+          content: mappedContent,
+        });
+      } else {
+        res.status(200).send({
+          message: "You haven't any albums",
+        });
+      }
     } else {
-      res.status(200).send({
-        message: "You haven't any albums",
+      res.status(403).send({
+        message: "Invalid login",
       });
     }
-  } else {
-    res.status(403).send({
-      message: "Invalid login",
-    });
-  }
-});
+  };
 
-export const giveAccessToClients: RequestHandler = catchAsync(
-  async (req, res, next) => {
+  public giveAccessToClients: RequestHandler = async (req, res) => {
     const token = req.headers.authorization!.split(" ")[1];
     const login = extractLoginFromJWT(token);
     if (login) {
       const album = req.params.album;
-      const clientLogins: string[] = req.body.giveAccessTo;
-      if (!(await ifAlbumExists(login, album))) {
+      const body: giveAccess = req.body;
+      const clientLogins = body.giveAccessTo;
+
+      if (!(await this.albums.ifAlbumExists(login, album))) {
         res.status(404).send({
           message: "Album not found",
         });
       } else {
-        await giveAccessToAlbum(login, album, clientLogins);
+        await this.albums.giveAccessToAlbum(login, album, clientLogins);
         res.status(200).send({
           message: "Access is given",
         });
@@ -111,5 +133,7 @@ export const giveAccessToClients: RequestHandler = catchAsync(
         message: "Invalid login",
       });
     }
-  }
-);
+  };
+}
+
+export default AlbumsController;

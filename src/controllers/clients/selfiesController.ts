@@ -1,21 +1,42 @@
-import { extractLoginFromJWT } from "./authController.js";
+import { extractLoginFromJWT } from "../../utils/jwt.js";
 import { RequestHandler } from "express";
-import { getClientName, updateClientName } from "../../db/databaseApi.js";
+import Clients from "../../db/clients/clientsApi.js";
 import { connectS3 } from "../../s3/s3connection.js";
 import { listFolderObjects } from "../../s3/s3api.js";
-import { catchAsync } from "../../middleware/catchAsync.js";
+import { catchAsync } from "../../utils/catchAsync.js";
+import Controller from "../Controller.js";
+import { authClients } from "../../utils/authMiddleware.js";
+import { setName } from "../../dtos/interfaces.js";
 
 const s3 = connectS3();
 
-export const uploadSelfiesPhoto: RequestHandler = catchAsync(
-  async (req, res, next) => {
+class SelfiesController extends Controller {
+  public readonly path: string;
+
+  public constructor(path: string, public readonly clients: Clients) {
+    super("");
+    this.path = path;
+    this.initializeRoutes();
+  }
+
+  public initializeRoutes = () => {
+    this.router.post("/setname", authClients, catchAsync(this.setClientName));
+    this.router.get("/profile", authClients, catchAsync(this.getClientData));
+    this.router.post(
+      "/uploadphoto",
+      authClients,
+      catchAsync(this.uploadSelfiesPhoto)
+    );
+  };
+
+  public uploadSelfiesPhoto: RequestHandler = async (req, res) => {
     const token = req.headers.authorization!.split(" ")[1];
     const login: string = extractLoginFromJWT(token);
     if (login) {
       const bucketName = process.env.BUCKET_NAME_S3;
       const folderName = `selfies/${login}/`;
 
-      var metaName = "";
+      let metaName = "";
       // if (JSON.parse(Object.keys(req.body)[0]).metadata.name === "") {
       if (req.body.metadata.name === "") {
         //   metaName = JSON.parse(Object.keys(req.body)[0]).filename;
@@ -24,7 +45,7 @@ export const uploadSelfiesPhoto: RequestHandler = catchAsync(
         // metaName = JSON.parse(Object.keys(req.body)[0]).metadata.name;
         metaName = req.body.metadata.name;
       }
-      var metaCaption = "";
+      let metaCaption = "";
       // if (!JSON.parse(Object.keys(req.body)[0]).metadata.caption) {
       if (!req.body.metadata.caption) {
         metaCaption = "";
@@ -32,7 +53,7 @@ export const uploadSelfiesPhoto: RequestHandler = catchAsync(
         // metaCaption = JSON.parse(Object.keys(req.body)[0]).metadata.caption;
         metaCaption = req.body.metadata.caption;
       }
-      let tag1 = "fileName=" + metaName;
+      const tag1 = "fileName=" + metaName;
       let tag2 = "";
       if (metaCaption) {
         tag2 = "fileDescription=" + metaCaption;
@@ -71,44 +92,43 @@ export const uploadSelfiesPhoto: RequestHandler = catchAsync(
         message: "Invalid login",
       });
     }
-  }
-);
+  };
 
-export const clientName: RequestHandler = catchAsync(async (req, res, next) => {
-  const token = req.headers.authorization!.split(" ")[1];
-  const login = extractLoginFromJWT(token);
-  if (login) {
-    const name = req.body.name;
-    if (name) {
-      await updateClientName(login, name);
-      res.status(200).send({
-        message: "Name is added to the client",
-      });
-    } else {
-      res.status(400).send({
-        message: "Name was not provided",
-      });
-    }
-  } else {
-    res.status(403).send({
-      message: "Invalid login",
-    });
-  }
-});
-
-export const getClientData: RequestHandler = catchAsync(
-  async (req, res, next) => {
+  public setClientName: RequestHandler = async (req, res) => {
     const token = req.headers.authorization!.split(" ")[1];
     const login = extractLoginFromJWT(token);
     if (login) {
-      const name = await getClientName(login);
-      const bucketName = process.env.BUCKET_NAME_S3 as string;
+      const body: setName = req.body;
+      const name = body.name;
+      if (name) {
+        await this.clients.updateClientName(login, name);
+        res.status(200).send({
+          message: "Name is added to the client",
+        });
+      } else {
+        res.status(400).send({
+          message: "Name was not provided",
+        });
+      }
+    } else {
+      res.status(403).send({
+        message: "Invalid login",
+      });
+    }
+  };
+
+  public getClientData: RequestHandler = async (req, res) => {
+    const token = req.headers.authorization!.split(" ")[1];
+    const login = extractLoginFromJWT(token);
+    if (login) {
+      const name = await this.clients.getClientName(login);
+      const bucketName = process.env.BUCKET_NAME_S3;
       const folderName = `selfies/${login}`;
       const params = {
         Bucket: bucketName,
         Prefix: folderName,
       };
-      let contentResponse = await listFolderObjects(params);
+      const contentResponse = await listFolderObjects(params);
 
       res.status(200).send({
         message: "Client profile",
@@ -120,5 +140,7 @@ export const getClientData: RequestHandler = catchAsync(
         message: "Invalid login",
       });
     }
-  }
-);
+  };
+}
+
+export default SelfiesController;

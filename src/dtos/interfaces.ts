@@ -1,13 +1,13 @@
-export interface credentialsPhotographers {
+export interface authClients {
   login: string;
   password: string;
+  otp?: string | number;
+  type?: "registration" | "login";
 }
 
-export interface credentialsClients {
+export interface loginPhotographers {
   login: string;
   password: string;
-  type: "login" | "registration";
-  otp?: number;
 }
 
 export interface albumCreation {
@@ -17,6 +17,10 @@ export interface albumCreation {
   price: number /* in cents */;
 }
 
-export interface addClientName {
+export interface giveAccess {
+  giveAccessTo: string[];
+}
+
+export interface setName {
   name: string;
 }

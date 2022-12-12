@@ -1,5 +1,5 @@
-import { connectS3 } from "./s3connection.js";
-import { S3 } from "aws-sdk";
+import { connectS3 } from './s3connection.js';
+import { S3 } from 'aws-sdk';
 
 const s3 = connectS3();
 
@@ -19,9 +19,9 @@ export const generateParams = (
   };
 };
 export const correctImageExtension = (filename: string) => {
-  const arr = filename.split(".");
+  const arr = filename.split('.');
   const lastItem = arr[arr.length - 1];
-  if (lastItem == "png" || lastItem == "jpg" || lastItem == "jpeg") {
+  if (lastItem == 'png' || lastItem == 'jpg' || lastItem == 'jpeg') {
     return filename;
   } else {
     return `${filename}.jpeg`;
@@ -31,7 +31,7 @@ export const correctImageExtension = (filename: string) => {
 export const listFolderObjects = async (params: listObjectsParams) => {
   const content: S3.ListObjectsOutput = await s3.listObjects(params).promise();
   const namesArr: (string | undefined)[] = content.Contents!.map(
-    (item) => item.Key?.split("/")[2]
+    (item) => item.Key?.split('/')[2]
   );
   return namesArr;
 };

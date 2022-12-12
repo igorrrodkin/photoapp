@@ -1,10 +1,11 @@
 import { Telegraf } from "telegraf";
 
-const chatId = process.env.CHAT_ID_TG_BOT as string;
-const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN as string);
+const chatId = process.env.CHAT_ID_TG_BOT;
+const botToken = process.env.TELEGRAM_BOT_TOKEN;
+const bot = new Telegraf(botToken);
 
-const generateOTP = (): number => {
-  return Math.floor(Math.random() * 899999 + 100000);
+const generateOTP = (): string => {
+  return JSON.stringify(Math.floor(Math.random() * 899999 + 100000));
 };
 
 export const sendOneTimePassword = (login: string) => {

@@ -1,7 +1,7 @@
 import pg from "pg";
 import "dotenv/config";
+import { PgConnector } from "drizzle-orm-pg";
 
-const { Client } = pg;
 export type config = {
   PORT_APP: number;
   USER_PSQL: string;
@@ -11,18 +11,12 @@ export type config = {
   PORT_PSQL: number;
 };
 
-const dbConn = (): pg.Client => {
-  const client = new Client({
-    user: process.env.USER_PSQL,
-    host: process.env.HOST_PSQL,
-    database: process.env.DB_PSQL,
-    password: process.env.PASSWORD_PSQL,
-    port: 5432,
-  });
-  client.connect((err) => {
-    if (err) throw err;
-  });
-  return client;
-};
+const pool = new pg.Pool({
+  user: process.env.USER_PSQL,
+  host: process.env.HOST_PSQL,
+  database: process.env.DB_PSQL,
+  password: process.env.PASSWORD_PSQL,
+  port: 5432,
+});
 
-export default dbConn;
+export const db = new PgConnector(pool);

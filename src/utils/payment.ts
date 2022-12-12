@@ -1,12 +1,8 @@
-import { RequestHandler } from "express";
-import { availableAlbums } from "../db/databaseApi.js";
-import { extractLoginFromJWT } from "../controllers/clients/authController.js";
 import Stripe from "stripe";
 
-const secretAPIkey =
-  "sk_test_51M7Jn3Adu1TKJZJsHZQGEOaWZEHYlLeV0AjoSLImGQsm3N0Y10idoZp27USmeyHWvACFcWHhQFNeKfvPJ1haKaCG009YnRDq8G";
+const secretAPIkey = process.env.STRIPE_SECRET;
 
-const stripe = new Stripe(secretAPIkey, {
+export const stripe: Stripe = new Stripe(secretAPIkey, {
   apiVersion: "2022-11-15",
   typescript: true,
 });

@@ -1,9 +1,9 @@
-import Jimp from "jimp";
+import Jimp from 'jimp';
 
-const LOGO = "images.png";
+const LOGO = 'images.png';
 const LOGO_MARGIN_PERCENTAGE = 10;
 
-export const addWatermark = async (photo: any): Promise<Jimp> => {
+export const addWatermark = async (photo: string): Promise<Jimp> => {
   const [image, logo] = await Promise.all([Jimp.read(photo), Jimp.read(LOGO)]);
 
   logo.resize(image.bitmap.width / 10, Jimp.AUTO);
