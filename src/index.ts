@@ -12,18 +12,36 @@ import Clients from "./db/clients/clientsApi.js";
 import { db } from "./db/connection.js";
 import Photographers from "./db/photographers/photographersApi.js";
 import Albums from "./db/albums/albumsApi.js";
-
+import { S3 } from "aws-sdk";
+import { connectS3 } from "./s3/s3connection.js";
+import S3Controller from "./s3/s3api.js";
 const main = async () => {
   const client: PgDatabase = await db.connect();
-
+  const s3client: S3 = connectS3();
   const controllers = [
     new AuthControllerClients("/clients", new Clients(client)),
-    new DashboardController("/clients/dashboard", new Albums(client)),
-    new SelfiesController("/clients/selfies", new Clients(client)),
-    new PaymentController("/clients/payment", new Albums(client)),
+    new DashboardController(
+      "/clients/dashboard",
+      new Albums(client),
+      new S3Controller(s3client)
+    ),
+    new SelfiesController(
+      "/clients/selfies",
+      new Clients(client),
+      new S3Controller(s3client)
+    ),
+    new PaymentController(
+      "/clients/payment",
+      new Albums(client),
+      new S3Controller(s3client)
+    ),
     new AuthController("/photographers", new Photographers(client)),
     new AlbumsController("/photographers/albums", new Albums(client)),
-    new ImagesController("/photographers/images", new Albums(client)),
+    new ImagesController(
+      "/photographers/images",
+      new Albums(client),
+      new S3Controller(s3client)
+    ),
   ];
   const port = process.env.PORT_APP || 3000;
 

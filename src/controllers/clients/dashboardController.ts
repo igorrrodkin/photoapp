@@ -1,7 +1,7 @@
 import { RequestHandler } from "express";
 import { extractLoginFromJWT } from "../../utils/jwt.js";
 import Albums from "../../db/albums/albumsApi.js";
-import { listFolderObjects } from "../../s3/s3api.js";
+import S3Controller from "../../s3/s3api.js";
 import { catchAsync } from "../../utils/catchAsync.js";
 import Controller from "../Controller.js";
 import { authClients } from "../../utils/authMiddleware.js";
@@ -9,7 +9,11 @@ import { authClients } from "../../utils/authMiddleware.js";
 class DashboardController extends Controller {
   public readonly path: string;
 
-  public constructor(path: string, public readonly albums: Albums) {
+  public constructor(
+    path: string,
+    public readonly albums: Albums,
+    public readonly s3: S3Controller
+  ) {
     super("");
     this.path = path;
     this.initializeRoutes();
@@ -54,7 +58,7 @@ class DashboardController extends Controller {
         Bucket: bucketName,
         Prefix: folderName,
       };
-      const contentResponse = await listFolderObjects(params);
+      const contentResponse = await this.s3.listFolderObjects(params);
       res.status(200).send({
         message: "done!",
         content: contentResponse,

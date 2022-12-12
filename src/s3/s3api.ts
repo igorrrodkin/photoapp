@@ -1,50 +1,201 @@
-import { connectS3 } from './s3connection.js';
-import { S3 } from 'aws-sdk';
-
-const s3 = connectS3();
+import { S3 } from "aws-sdk";
+import { reqPresignedUrl } from "../dtos/interfaces.js";
 
 interface listObjectsParams {
   Bucket: string;
   Prefix: string;
 }
 
-export const generateParams = (
-  params: listObjectsParams,
-  imageName: string
-) => {
-  const keyParam = `${params.Prefix}/${correctImageExtension(imageName)}`;
-  return {
-    Bucket: `images-photo-app`,
-    Key: keyParam,
+export default class S3Controller {
+  public constructor(private s3: S3) {}
+
+  public getObjectBody = async (
+    params: listObjectsParams,
+    imageName: string
+  ) => {
+    let validImgName;
+    const imgNameArr = imageName.split(".");
+    const imgExtension = imgNameArr[imgNameArr.length - 1];
+    if (
+      imgExtension == "png" ||
+      imgExtension == "jpg" ||
+      imgExtension == "jpeg"
+    ) {
+      validImgName = imageName;
+    } else {
+      validImgName = `${imageName}.jpeg`;
+    }
+    const key = `${params.Prefix}/${validImgName}`;
+    const validParams = {
+      Bucket: `images-photo-app`,
+      Key: key,
+    };
+    const data: S3.GetObjectOutput = await this.s3
+      .getObject(validParams)
+      .promise();
+    return data.Body;
   };
-};
-export const correctImageExtension = (filename: string) => {
-  const arr = filename.split('.');
-  const lastItem = arr[arr.length - 1];
-  if (lastItem == 'png' || lastItem == 'jpg' || lastItem == 'jpeg') {
-    return filename;
-  } else {
-    return `${filename}.jpeg`;
-  }
-};
 
-export const listFolderObjects = async (params: listObjectsParams) => {
-  const content: S3.ListObjectsOutput = await s3.listObjects(params).promise();
-  const namesArr: (string | undefined)[] = content.Contents!.map(
-    (item) => item.Key?.split('/')[2]
-  );
-  return namesArr;
-};
+  public listFolderObjects = async (params: listObjectsParams) => {
+    const content: S3.ListObjectsOutput = await this.s3
+      .listObjects(params)
+      .promise();
+    const namesArr: (string | undefined)[] = content.Contents!.map(
+      (item) => item.Key?.split("/")[2]
+    );
+    return namesArr;
+  };
 
-export const getObjectBody = async (
-  params: listObjectsParams,
-  imageName: string
-) => {
-  const data: S3.GetObjectOutput = await s3
-    .getObject(generateParams(params, imageName!))
-    .promise();
-  return data.Body;
-};
+  public generatePresigned = async (
+    bucketName: string,
+    folder: string,
+    user: string,
+    request: reqPresignedUrl
+  ) => {
+    let metaName = "";
+    // if (JSON.parse(Object.keys(req.body)[0]).metadata.name === "") {
+    if (request.metadata.name === "") {
+      //   metaName = JSON.parse(Object.keys(req.body)[0]).filename;
+      metaName = request.filename;
+    } else {
+      // metaName = JSON.parse(Object.keys(req.body)[0]).metadata.name;
+      metaName = request.metadata.name;
+    }
+    let metaCaption = "";
+    // if (!JSON.parse(Object.keys(req.body)[0]).metadata.caption) {
+    if (request.metadata.caption) {
+      metaCaption = "";
+    } else {
+      // metaCaption = JSON.parse(Object.keys(req.body)[0]).metadata.caption;
+      metaCaption = request.metadata.caption;
+    }
+    const tag1 = "fileName=" + metaName;
+    let tag2 = "";
+    if (metaCaption) {
+      tag2 = "fileDescription=" + metaCaption;
+    } else {
+      tag2 = "";
+    }
+    const tags = tag1 + "&" + tag2;
+    const combinedTags = String(tags);
+    const params = {
+      Metadata: {
+        fileName: metaName, // add the user-input filename as the value for the 'fileName' metadata key
+        caption: metaCaption, // add the user-input caption as the value for the 'caption' metadata key
+        user: user, // let's grab the user who uploaded this and use the username as the value with the 'user' key
+        uploadDateUTC: Date(), // and let's grab the UTC date the file was uploaded
+      },
+      Bucket: bucketName,
+      // Key: folderName + `${JSON.parse(Object.keys(req.body)[0]).filename}`,
+      Key: folder + `${request.filename}`,
+      // ContentType: JSON.parse(Object.keys(req.body)[0]).contentType,
+
+      ContentType: request.contentType,
+      Tagging: "random=random",
+    };
+
+    const signedUrl = this.s3.getSignedUrl("putObject", params);
+    return [signedUrl, combinedTags];
+  };
+
+  public generatePresignedWatermarked = async (
+    bucketName: string,
+    folderWatermarked: string,
+    user: string,
+    request: reqPresignedUrl
+  ) => {
+    let metaName = "";
+    // if (JSON.parse(Object.keys(req.body)[0]).metadata.name === "") {
+    if (request.metadata.name === "") {
+      //   metaName = JSON.parse(Object.keys(req.body)[0]).filename;
+      metaName = request.filename;
+    } else {
+      // metaName = JSON.parse(Object.keys(req.body)[0]).metadata.name;
+      metaName = request.metadata.name;
+    }
+    let metaCaption = "";
+    // if (!JSON.parse(Object.keys(req.body)[0]).metadata.caption) {
+    if (!request.metadata.caption) {
+      metaCaption = "";
+    } else {
+      // metaCaption = JSON.parse(Object.keys(req.body)[0]).metadata.caption;
+      metaCaption = request.metadata.caption;
+    }
+
+    const paramsWatermarked = {
+      Metadata: {
+        fileName: metaName, // add the user-input filename as the value for the 'fileName' metadata key
+        caption: metaCaption, // add the user-input caption as the value for the 'caption' metadata key
+        user: user, // let's grab the user who uploaded this and use the username as the value with the 'user' key
+        uploadDateUTC: Date(), // and let's grab the UTC date the file was uploaded
+      },
+      Bucket: bucketName,
+      // Key: folderNameWatermarked + `${JSON.parse(Object.keys(req.body)[0]).filename}`,
+      Key: folderWatermarked + `${request.filename}`,
+      // ContentType: JSON.parse(Object.keys(req.body)[0]).contentType,
+
+      ContentType: request.contentType,
+      Tagging: "random=random",
+    };
+    const signedUrlWatermarked = this.s3.getSignedUrl(
+      "putObject",
+      paramsWatermarked
+    );
+    return signedUrlWatermarked;
+  };
+
+  public generateSefiesPresigned = async (
+    bucketName: string,
+    user: string,
+    request: reqPresignedUrl
+  ) => {
+    const folderName = `selfies/${user}/`;
+
+    let metaName = "";
+    // if (JSON.parse(Object.keys(req.body)[0]).metadata.name === "") {
+    if (request.metadata.name === "") {
+      //   metaName = JSON.parse(Object.keys(req.body)[0]).filename;
+      metaName = request.filename;
+    } else {
+      // metaName = JSON.parse(Object.keys(req.body)[0]).metadata.name;
+      metaName = request.metadata.name;
+    }
+    let metaCaption = "";
+    // if (!JSON.parse(Object.keys(req.body)[0]).metadata.caption) {
+    if (!request.metadata.caption) {
+      metaCaption = "";
+    } else {
+      // metaCaption = JSON.parse(Object.keys(req.body)[0]).metadata.caption;
+      metaCaption = request.metadata.caption;
+    }
+    const tag1 = "fileName=" + metaName;
+    let tag2 = "";
+    if (metaCaption) {
+      tag2 = "fileDescription=" + metaCaption;
+    } else {
+      tag2 = "";
+    }
+    const tags = tag1 + "&" + tag2;
+    const combinedTags = String(tags);
+    const params = {
+      Metadata: {
+        fileName: metaName, // add the user-input filename as the value for the 'fileName' metadata key
+        caption: metaCaption, // add the user-input caption as the value for the 'caption' metadata key
+        user: user, // let's grab the user who uploaded this and use the username as the value with the 'user' key
+        uploadDateUTC: Date(), // and let's grab the UTC date the file was uploaded
+      },
+      Bucket: bucketName,
+      // Key: folderName + `${JSON.parse(Object.keys(req.body)[0]).filename}`,
+      Key: folderName + `${request.filename}`,
+      // ContentType: JSON.parse(Object.keys(req.body)[0]).contentType,
+
+      ContentType: request.contentType,
+      Tagging: "random=random",
+    };
+    const signedUrl = this.s3.getSignedUrl("putObject", params);
+    return [signedUrl, combinedTags];
+  };
+}
 
 // function for showing images in the browser.
 // content - array of photo names

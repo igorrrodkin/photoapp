@@ -24,3 +24,12 @@ export interface giveAccess {
 export interface setName {
   name: string;
 }
+
+export interface reqPresignedUrl {
+  contentType: string;
+  filename: string;
+  metadata: {
+    caption: string;
+    name: string;
+  };
+}

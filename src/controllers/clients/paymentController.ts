@@ -2,7 +2,7 @@ import { RequestHandler } from "express";
 import { authClients } from "../../utils/authMiddleware.js";
 import Albums from "../../db/albums/albumsApi.js";
 import { extractLoginFromJWT } from "../../utils/jwt.js";
-import { getObjectBody, listFolderObjects } from "../../s3/s3api.js";
+import S3Controller from "../../s3/s3api.js";
 import { catchAsync } from "../../utils/catchAsync.js";
 import Controller from "../Controller.js";
 import { stripe } from "../../utils/payment.js";
@@ -12,7 +12,11 @@ const URL = process.env.DEV_URL;
 class PaymentController extends Controller {
   public readonly path: string;
 
-  public constructor(path: string, public readonly albums: Albums) {
+  public constructor(
+    path: string,
+    public readonly albums: Albums,
+    public readonly s3: S3Controller
+  ) {
     super("");
     this.path = path;
     this.initializeRoutes();
@@ -63,8 +67,8 @@ class PaymentController extends Controller {
             },
           ],
           mode: "payment",
-          success_url: `${URL}/clients/dashboard/${photographer}/${album}/payment/success`,
-          cancel_url: `${URL}/clients/dashboard/${photographer}/${album}/payment/cancel`,
+          success_url: `${URL}/clients/payment/${photographer}/${album}/success`,
+          cancel_url: `${URL}/clients/payment/${photographer}/${album}/cancel`,
         });
 
         res.redirect(303, session.url!);
@@ -87,9 +91,8 @@ class PaymentController extends Controller {
       Bucket: "images-photo-app",
       Prefix: `albums/${photographer}-${album}`,
     };
-    const arrayOfPhotoNames: (string | undefined)[] = await listFolderObjects(
-      params
-    );
+    const arrayOfPhotoNames: (string | undefined)[] =
+      await this.s3.listFolderObjects(params);
 
     if (arrayOfPhotoNames) {
       res.status(200).send({
@@ -111,14 +114,13 @@ class PaymentController extends Controller {
       Bucket: "images-photo-app",
       Prefix: `albums/${photographer}-${album}`,
     };
-    const arrayOfPhotoNames: (string | undefined)[] = await listFolderObjects(
-      params
-    );
+    const arrayOfPhotoNames: (string | undefined)[] =
+      await this.s3.listFolderObjects(params);
 
     if (arrayOfPhotoNames) {
       res.setHeader("Content-disposition", `attachment;filename=${image}`);
       res.setHeader("Content-Type", "image/*");
-      const imgBody = getObjectBody(params, image);
+      const imgBody = this.s3.getObjectBody(params, image);
       res.send(imgBody);
     } else {
       res.status(404).send({
