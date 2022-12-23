@@ -24,7 +24,16 @@ export interface giveAccess {
 export interface setName {
   name: string;
 }
-
+export interface setEmail {
+  email: string;
+}
+export interface changeNumberInterface {
+  newNumber: string;
+}
+export interface profileContent {
+  name: string | null;
+  email: string | null;
+}
 export interface reqPresignedUrl {
   contentType: string;
   filename: string;
@@ -32,4 +41,9 @@ export interface reqPresignedUrl {
     caption: string;
     name: string;
   };
+}
+
+export interface otpData {
+  otp: string | null;
+  date: string | null;
 }

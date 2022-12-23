@@ -5,9 +5,8 @@ import { sendOneTimePassword } from "../../utils/sendOtp.js";
 import { catchAsync } from "../../utils/catchAsync.js";
 import Controller from "../Controller.js";
 import { signAccessTokenClient } from "../../utils/jwt.js";
-import { registrationClientsValidation } from "../../dtos/validation/registrationClients.js";
-import { authClients } from "../../dtos/interfaces.js";
-let otp: string;
+// import { registrationClientsValidation } from "../../dtos/validation/registrationClients.js";
+// import { authClients } from "../../dtos/interfaces.js";
 
 class AuthControllerClients extends Controller {
   public readonly path: string;
@@ -20,100 +19,59 @@ class AuthControllerClients extends Controller {
 
   public initializeRoutes = () => {
     this.router.post("/auth", catchAsync(this.authHandler));
-    this.router.post("/resend", catchAsync(this.resendOtpHandler));
+    this.router.post("/:phone/otp", catchAsync(this.otpHandler));
+    this.router.post("/:phone/resend", catchAsync(this.resendHandler));
   };
-
   public authHandler: RequestHandler = async (req, res) => {
-    let user;
-    const body: authClients = req.body;
-    if (body.type == "registration") {
-      const { error } = registrationClientsValidation(body);
-      if (error) {
-        res.status(400).send({
-          message: error.details[0].message,
-        });
-      } else {
-        if (await this.clients.ifClientLoginExists(body.login)) {
-          res.status(400).send({
-            message: "User with this login already exists!",
-          });
-        } else {
-          await this.clients.registerClient(body.login, body.password);
-          res.status(200).send({
-            message: "Successfully registered",
-          });
-        }
-      }
-    } else if (body.type == "login") {
-      if (!req.body.otp) {
-        user = await this.clients.clientInterceptor(body.login, body.password);
-        if (user.statusCode == 200) {
-          otp = sendOneTimePassword(body.login);
-          await this.clients.updateOTPbyLogin(body.login, otp);
-          await this.clients.setResendOTPavailable(body.login);
-
-          setTimeout(async () => {
-            otp = "0";
-            await this.clients.updateOTPbyLogin(body.login, otp);
-          }, 1000 * 180);
-          res.status(200).send({
-            message: "OTP is sent to the Telegram chat",
-          });
-        } else {
-          res.status(user.statusCode).send({
-            message: user.message,
-          });
-        }
-      } else {
-        if (
-          req.body.otp == (await this.clients.getOTPvalueByLogin(body.login))
-        ) {
-          await this.clients.setResendOTPavailable(body.login);
-          res.status(200).send({
-            message: "Successfully logged in",
-            access_token: signAccessTokenClient(body.login),
-          });
-        } else {
-          res.status(403).send({
-            message: "Invalid OTP or it has already expired",
-          });
-        }
-      }
+    const phoneNumber = req.body.phoneNumber;
+    if (!phoneNumber) {
+      res.status(404).send({
+        message: "Phone number was not provided",
+      });
     } else {
-      res.status(400).send({
-        message: "Bad Request",
+      const otp = sendOneTimePassword(phoneNumber);
+      if (await this.clients.ifClientNumberNotExists(phoneNumber)) {
+        await this.clients.registerClient(phoneNumber);
+      }
+      await this.clients.updateOTPbyNumber(phoneNumber, otp);
+      res.status(200).send({
+        message: " OTP is sent to Telegram",
       });
     }
   };
 
-  public resendOtpHandler: RequestHandler = async (req, res) => {
-    const body: authClients = req.body;
-    const user = await this.clients.clientInterceptor(
-      body.login,
-      body.password
-    );
-    if (user.statusCode == 200) {
-      if (await this.clients.checkIfresendOTPavailable(body.login)) {
-        otp = sendOneTimePassword(body.login);
-        await this.clients.updateOTPbyLogin(body.login, otp);
-        await this.clients.setResendOTPinavailable(body.login);
-        setTimeout(async () => {
-          otp = "0";
-          await this.clients.updateOTPbyLogin(body.login, otp);
-        }, 1000 * 180);
+  public otpHandler: RequestHandler = async (req, res) => {
+    const otp = req.body.otp;
+    const phoneNumber = req.params.phone;
+    const otpContent = await this.clients.getOTPdata(phoneNumber);
+    if (otp == otpContent.otp) {
+      const now = new Date().getTime();
+      const otpDepartureDate: number = +otpContent.date!;
+      if (now - otpDepartureDate <= 180000) {
+        const content = await this.clients.getUUIDbyNumber(phoneNumber);
         res.status(200).send({
-          message: "OTP is resent to Telegram",
+          message: "Successfully logged in",
+          access_token: signAccessTokenClient(content.uuid!),
         });
       } else {
         res.status(403).send({
-          message: " You can resend OTP just once",
+          message: "OTP expired",
         });
       }
     } else {
-      res.status(user.statusCode).send({
-        message: user.message,
+      res.status(403).send({
+        message: "Invalid OTP",
       });
     }
+  };
+
+  public resendHandler: RequestHandler = async (req, res) => {
+    const phoneNumber = req.params.phone;
+    const otp = sendOneTimePassword(phoneNumber);
+    await this.clients.updateOTPbyNumber(phoneNumber, otp);
+    res.status(200).send({
+      message: "OTP is sent",
+    });
   };
 }
 

@@ -42,7 +42,8 @@
     "jsonwebtoken": "^8.5.1",
     "pg": "^8.8.0",
     "stripe": "^11.1.0",
-    "telegraf": "^4.10.0"
+    "telegraf": "^4.10.0",
+    "uuid": "^9.0.0"
   },
   "type": "module"
 }

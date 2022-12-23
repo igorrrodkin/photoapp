@@ -1,103 +1,74 @@
 import { InferModel, PgDatabase } from "drizzle-orm-pg";
 import { eq } from "drizzle-orm/expressions.js";
-import { db } from "../connection.js";
+import { otpData, profileContent } from "../../dtos/interfaces.js";
 import { clients } from "./schema.js";
-// import { schema } from "../../index.js";
+import { v4 } from "uuid";
 export type Client = InferModel<typeof clients>;
 
 class Clients {
-  //   public connect = await db.connect();
   public constructor(public db: PgDatabase) {}
 
-  public clientInterceptor = async (login: string, password: string) => {
-    const content = await this.db
-      .select(clients)
-      .fields({ login: clients.login, password: clients.password })
-      .where(eq(clients.login, login));
-    let response;
-    if (content.length == 0) {
-      response = { message: "Invalid login", statusCode: 404 };
-    } else {
-      const passwordDatabase = content[0].password;
-      if (passwordDatabase != password) {
-        response = { message: "Invalid password", statusCode: 403 };
-      } else {
-        response = {
-          message: "Successfully logged in",
-          statusCode: 200,
-        };
-      }
-    }
-    return response;
-  };
-  public registerClient = async (
-    login: string,
-    password: string
-  ): Promise<void> => {
-    // const client = await db.connect();
-    await this.db.insert(clients).values({ login: login, password: password });
+  public registerClient = async (phoneNumber: string): Promise<void> => {
+    await this.db
+      .insert(clients)
+      .values({ phoneNumber: phoneNumber, uuid: v4() });
   };
 
-  public ifClientLoginExists = async (login: string): Promise<boolean> => {
-    // const client = await db.connect();
+  public ifClientNumberNotExists = async (
+    phoneNumber: string
+  ): Promise<boolean> => {
     const content = await this.db
       .select(clients)
-      .where(eq(clients.login, login));
+      .where(eq(clients.phoneNumber, phoneNumber));
     if (content.length == 0) {
       return true;
     }
     return false;
   };
 
-  public updateOTPbyLogin = async (
-    login: string,
-    //   otp: number,
+  public updateOTPbyNumber = async (
+    phoneNumber: string,
     otp: string
   ): Promise<void> => {
-    // const client = await db.connect();
     await this.db
       .update(clients)
-      .set({ otp: otp })
-      .where(eq(clients.login, login));
+      .set({ otp: otp, otpDepartureDate: JSON.stringify(new Date().getTime()) })
+      .where(eq(clients.phoneNumber, phoneNumber));
   };
 
-  public getOTPvalueByLogin = async (login: string): Promise<number> => {
-    // const client = await db.connect();
+  public getOTPdata = async (phoneNumber: string): Promise<otpData> => {
     const content = await this.db
       .select(clients)
-      .fields({ otp: clients.otp })
-      .where(eq(clients.login, login));
-    if (content[0].otp) {
-      return +content[0].otp;
-    }
-    return 0;
+      .fields({ otp: clients.otp, date: clients.otpDepartureDate })
+      .where(eq(clients.phoneNumber, phoneNumber));
+
+    return content[0];
   };
 
   // method is used for inavailability to send otp again
-  public setResendOTPinavailable = async (login: string): Promise<void> => {
-    // const client = await db.connect();
+  public setResendOTPinavailable = async (
+    phoneNumber: string
+  ): Promise<void> => {
     await this.db
       .update(clients)
       .set({ resendOtp: false })
-      .where(eq(clients.login, login));
+      .where(eq(clients.phoneNumber, phoneNumber));
   };
 
-  public setResendOTPavailable = async (login: string): Promise<void> => {
-    // const client = await db.connect();
+  public setResendOTPavailable = async (phoneNumber: string): Promise<void> => {
     await this.db
       .update(clients)
       .set({ resendOtp: true })
-      .where(eq(clients.login, login));
+      .where(eq(clients.phoneNumber, phoneNumber));
   };
 
   public checkIfresendOTPavailable = async (
-    login: string
+    phoneNumber: string
   ): Promise<boolean> => {
-    // const client = await db.connect();
     const content = await this.db
       .select(clients)
       .fields({ resendOtp: clients.resendOtp })
-      .where(eq(clients.login, login));
+      .where(eq(clients.phoneNumber, phoneNumber));
     if (content[0].resendOtp) {
       return content[0].resendOtp;
     }
@@ -105,138 +76,58 @@ class Clients {
   };
 
   public updateClientName = async (
-    userLogin: string,
+    uuid: string,
     name: string
   ): Promise<void> => {
-    // const client = await db.connect();
     await this.db
       .update(clients)
       .set({ name: name })
-      .where(eq(clients.login, userLogin));
+      .where(eq(clients.uuid, uuid));
   };
 
-  public getClientName = async (userLogin: string): Promise<string> => {
-    // const client = await db.connect();
+  public updateClientEmail = async (
+    uuid: string,
+    email: string
+  ): Promise<void> => {
+    await this.db
+      .update(clients)
+      .set({ email: email })
+      .where(eq(clients.uuid, uuid));
+  };
+
+  public getClientData = async (uuid: string): Promise<profileContent> => {
     const content = await this.db
       .select(clients)
-      .fields({ name: clients.name })
-      .where(eq(clients.login, userLogin));
-    if (content[0].name) {
-      return content[0].name;
-    } else {
-      return "Name has not been added. You can do it later";
-    }
+      .fields({ name: clients.name, email: clients.email })
+      .where(eq(clients.uuid, uuid));
+
+    return content[0];
+  };
+  public changePhoneNumber = async (
+    phoneNumber: string,
+    newNumber: string
+  ): Promise<void> => {
+    await this.db
+      .update(clients)
+      .set({ phoneNumber: newNumber })
+      .where(eq(clients.phoneNumber, phoneNumber));
+  };
+
+  public getUUIDbyNumber = async (phoneNumber: string) => {
+    const content = await this.db
+      .select(clients)
+      .fields({ uuid: clients.uuid })
+      .where(eq(clients.phoneNumber, phoneNumber));
+    return content[0];
+  };
+
+  public getNumberByUUID = async (uuid: string) => {
+    const content = await this.db
+      .select(clients)
+      .fields({ phoneNumber: clients.phoneNumber })
+      .where(eq(clients.uuid, uuid));
+    return content[0];
   };
 }
 
 export default Clients;
-
-export const clientInterceptor = async (login: string, password: string) => {
-  const client = await db.connect();
-  const content = await client
-    .select(clients)
-    .fields({ login: clients.login, password: clients.password })
-    .where(eq(clients.login, login));
-  let response;
-  if (content.length == 0) {
-    response = { message: "Invalid login", statusCode: 404 };
-  } else {
-    const passwordDatabase = content[0].password;
-    if (passwordDatabase != password) {
-      response = { message: "Invalid password", statusCode: 403 };
-    } else {
-      response = {
-        message: "Successfully logged in",
-        statusCode: 200,
-      };
-    }
-  }
-  return response;
-};
-export const registerClient = async (
-  login: string,
-  password: string
-): Promise<void> => {
-  const client = await db.connect();
-  await client.insert(clients).values({ login: login, password: password });
-};
-export const ifClientLoginExists = async (login: string): Promise<boolean> => {
-  const client = await db.connect();
-  const content = await client.select(clients).where(eq(clients.login, login));
-  if (content.length == 0) {
-    return true;
-  }
-  return false;
-};
-export const updateOTPbyLogin = async (
-  login: string,
-  //   otp: number,
-  otp: string
-): Promise<void> => {
-  const client = await db.connect();
-  await client
-    .update(clients)
-    .set({ otp: otp })
-    .where(eq(clients.login, login));
-};
-export const getOTPvalueByLogin = async (login: string): Promise<number> => {
-  const client = await db.connect();
-  const content = await client
-    .select(clients)
-    .fields({ otp: clients.otp })
-    .where(eq(clients.login, login));
-  if (content[0].otp) {
-    return +content[0].otp;
-  }
-  return 0;
-};
-// method is used for inavailability to send otp again
-export const setResendOTPinavailable = async (login: string): Promise<void> => {
-  const client = await db.connect();
-  await client
-    .update(clients)
-    .set({ resendOtp: false })
-    .where(eq(clients.login, login));
-};
-export const setResendOTPavailable = async (login: string): Promise<void> => {
-  const client = await db.connect();
-  await client
-    .update(clients)
-    .set({ resendOtp: true })
-    .where(eq(clients.login, login));
-};
-export const checkIfresendOTPavailable = async (
-  login: string
-): Promise<boolean> => {
-  const client = await db.connect();
-  const content = await client
-    .select(clients)
-    .fields({ resendOtp: clients.resendOtp })
-    .where(eq(clients.login, login));
-  if (content[0].resendOtp) {
-    return content[0].resendOtp;
-  }
-  return false;
-};
-export const updateClientName = async (
-  userLogin: string,
-  name: string
-): Promise<void> => {
-  const client = await db.connect();
-  await client
-    .update(clients)
-    .set({ name: name })
-    .where(eq(clients.login, userLogin));
-};
-export const getClientName = async (userLogin: string): Promise<string> => {
-  const client = await db.connect();
-  const content = await client
-    .select(clients)
-    .fields({ name: clients.name })
-    .where(eq(clients.login, userLogin));
-  if (content[0].name) {
-    return content[0].name;
-  } else {
-    return "Name has not been added. You can do it later";
-  }
-};

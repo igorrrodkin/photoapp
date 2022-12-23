@@ -1,5 +1,5 @@
 import { RequestHandler } from "express";
-import { extractLoginFromJWT } from "../../utils/jwt.js";
+// import { extractLoginFromJWT } from "../../utils/jwt.js";
 import Albums from "../../db/albums/albumsApi.js";
 import S3Controller from "../../s3/s3api.js";
 import { catchAsync } from "../../utils/catchAsync.js";
@@ -20,7 +20,7 @@ class DashboardController extends Controller {
   }
 
   public initializeRoutes = () => {
-    this.router.get("/", authClients, catchAsync(this.getAvailableAlbums));
+    // this.router.get("/", authClients, catchAsync(this.getAvailableAlbums));
     this.router.get(
       ":photographer/:album",
       authClients,
@@ -28,25 +28,25 @@ class DashboardController extends Controller {
     );
   };
 
-  public getAvailableAlbums: RequestHandler = async (req, res) => {
-    const token = req.headers.authorization!.split(" ")[1];
-    const login = extractLoginFromJWT(token);
-    const content = await this.albums.availableAlbums(login);
-    if (content) {
-      const contentFiltered = content.map((item) => {
-        return {
-          album: item.albumName,
-          photographer: item.login,
-          location: item.albumLocation,
-          datapicker: item.datapicker,
-          price: +item.price! / 100 + "$",
-        };
-      });
-      res.status(200).send({ content: contentFiltered });
-    } else {
-      res.status(200).send({ message: "You haven't access to any album" });
-    }
-  };
+  // public getAvailableAlbums: RequestHandler = async (req, res) => {
+  //   const token = req.headers.authorization!.split(" ")[1];
+  //   const login = extractLoginFromJWT(token);
+  //   const content = await this.albums.availableAlbums(login);
+  //   if (content) {
+  //     const contentFiltered = content.map((item) => {
+  //       return {
+  //         album: item.albumName,
+  //         photographer: item.login,
+  //         location: item.albumLocation,
+  //         datapicker: item.datapicker,
+  //         price: +item.price! / 100 + "$",
+  //       };
+  //     });
+  //     res.status(200).send({ content: contentFiltered });
+  //   } else {
+  //     res.status(200).send({ message: "You haven't access to any album" });
+  //   }
+  // };
 
   public listDashboardImages: RequestHandler = async (req, res) => {
     const albumName = req.params.album;

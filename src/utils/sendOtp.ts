@@ -8,8 +8,20 @@ const generateOTP = (): string => {
   return JSON.stringify(Math.floor(Math.random() * 899999 + 100000));
 };
 
-export const sendOneTimePassword = (login: string) => {
+export const sendOneTimePassword = (phoneNumber: string) => {
   const generatedOTP = generateOTP();
-  bot.telegram.sendMessage(chatId, `OTP for login "${login}": ${generatedOTP}`);
+  bot.telegram.sendMessage(
+    chatId,
+    `OTP for phone number "${phoneNumber}": ${generatedOTP}`
+  );
+  return generatedOTP;
+};
+
+export const changeNumberOtp = (oldNumber: string, phoneNumber: string) => {
+  const generatedOTP = generateOTP();
+  bot.telegram.sendMessage(
+    chatId,
+    `OTP change phone number\n Old number:${oldNumber}\nNew number:${phoneNumber}\nOTP:${generatedOTP}`
+  );
   return generatedOTP;
 };

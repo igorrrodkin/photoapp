@@ -24,20 +24,16 @@ export default class Albums {
     login: string,
     albumName: string,
     location: string,
-    datapicker: string,
-    price: string,
-    //   price: number,
-    priceId: string,
-    productId: string
+    datapicker: string
+    // price: string,
+    // priceId: string,
+    // productId: string
   ): Promise<void> => {
     await this.db.insert(albums).values({
       login: login,
       albumName: albumName,
       albumLocation: location,
       datapicker: datapicker,
-      price: price,
-      priceId: priceId,
-      productId: productId,
     });
   };
 
@@ -48,67 +44,66 @@ export default class Albums {
         album_name: albums.albumName,
         album_location: albums.albumLocation,
         datapicker: albums.datapicker,
-        price: albums.price,
       })
       .where(eq(albums.login, login));
     return result;
   };
 
-  public giveAccessToAlbum = async (
-    loginPhotographer: string,
-    albumName: string,
-    clientLogins: string[]
-  ): Promise<void> => {
-    const accessIsAlreadyGiven = await this.db
-      .select(albums)
-      .fields({ access_clients: albums.accessClients })
-      .where(
-        and(
-          eq(albums.login, loginPhotographer),
-          eq(albums.albumName, albumName)
-        )
-      );
-    const accessContent = accessIsAlreadyGiven[0].access_clients;
-    let finalArray: string[];
-    if (accessContent) {
-      const accessArray = JSON.parse(accessContent);
-      finalArray = Array.from(new Set(accessArray.concat(clientLogins)));
-    } else {
-      finalArray = clientLogins;
-    }
-    await this.db
-      .update(albums)
-      .set({ accessClients: JSON.stringify(finalArray) })
-      .where(
-        and(
-          eq(albums.albumName, albumName),
-          eq(albums.login, loginPhotographer)
-        )
-      );
-  };
+  //   public giveAccessToAlbum = async (
+  //     loginPhotographer: string,
+  //     albumName: string,
+  //     clientLogins: string[]
+  //   ): Promise<void> => {
+  //     const accessIsAlreadyGiven = await this.db
+  //       .select(albums)
+  //       .fields({ access_clients: albums.accessClients })
+  //       .where(
+  //         and(
+  //           eq(albums.login, loginPhotographer),
+  //           eq(albums.albumName, albumName)
+  //         )
+  //       );
+  //     const accessContent = accessIsAlreadyGiven[0].access_clients;
+  //     let finalArray: string[];
+  //     if (accessContent) {
+  //       const accessArray = JSON.parse(accessContent);
+  //       finalArray = Array.from(new Set(accessArray.concat(clientLogins)));
+  //     } else {
+  //       finalArray = clientLogins;
+  //     }
+  //     await this.db
+  //       .update(albums)
+  //       .set({ accessClients: JSON.stringify(finalArray) })
+  //       .where(
+  //         and(
+  //           eq(albums.albumName, albumName),
+  //           eq(albums.login, loginPhotographer)
+  //         )
+  //       );
+  //   };
 
-  public availableAlbums = async (userLogin: string): Promise<Album[]> => {
-    const content = await this.db.select(albums);
-    const availableAlbums = content.filter(
-      (item: Album) =>
-        item.accessClients && JSON.parse(item.accessClients).includes(userLogin)
-    );
-    return availableAlbums;
-  };
+  //   public availableAlbums = async (userLogin: string): Promise<Album[]> => {
+  //     const content = await this.db.select(albums);
+  //     const availableAlbums = content.filter(
+  //       (item: Album) =>
+  //         item.accessClients && JSON.parse(item.accessClients).includes(userLogin)
+  //     );
+  //     return availableAlbums;
+  //   };
 
-  public getPriceId = async (
-    loginPhotographer: string,
-    albumName: string
-  ): Promise<string> => {
-    const content = await this.db
-      .select(albums)
-      .fields({ price_id: albums.priceId })
-      .where(
-        and(
-          eq(albums.login, loginPhotographer),
-          eq(albums.albumName, albumName)
-        )
-      );
-    return content[0].price_id!;
-  };
+  //   public getPriceId = async (
+  //     loginPhotographer: string,
+  //     albumName: string
+  //   ): Promise<string> => {
+  //     const content = await this.db
+  //       .select(albums)
+  //       .fields({ price_id: albums.priceId })
+  //       .where(
+  //         and(
+  //           eq(albums.login, loginPhotographer),
+  //           eq(albums.albumName, albumName)
+  //         )
+  //       );
+  //     return content[0].price_id!;
+  //   };
 }

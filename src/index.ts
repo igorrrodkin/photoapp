@@ -3,7 +3,7 @@ import { PgDatabase } from "drizzle-orm-pg";
 import App from "./App.js";
 import AuthControllerClients from "./controllers/clients/AuthControllerClients.js";
 import DashboardController from "./controllers/clients/DashboardController.js";
-import PaymentController from "./controllers/clients/PaymentController.js";
+// import PaymentController from "./controllers/clients/PaymentController.js";
 import SelfiesController from "./controllers/clients/SelfiesController.js";
 import AlbumsController from "./controllers/photographers/AlbumsController.js";
 import AuthController from "./controllers/photographers/AuthController.js";
@@ -30,11 +30,11 @@ const main = async () => {
       new Clients(client),
       new S3Controller(s3client)
     ),
-    new PaymentController(
-      "/clients/payment",
-      new Albums(client),
-      new S3Controller(s3client)
-    ),
+    // new PaymentController(
+    //   "/clients/payment",
+    //   new Albums(client),
+    //   new S3Controller(s3client)
+    // ),
     new AuthController("/photographers", new Photographers(client)),
     new AlbumsController("/photographers/albums", new Albums(client)),
     new ImagesController(
@@ -51,3 +51,12 @@ const main = async () => {
 };
 
 main();
+
+/* логин-регистрация одно и то же - 
+клиент вводит номер телефона - поиск в базе 
+- если его нет -
+ ввести этот номер в постгрес вместо логина
+ Отправлять в телеграм ОТП для этого номера  и юзать в JWT номер телефона */
+/*
+В эндпоинте селфис дать возможность 
+*/

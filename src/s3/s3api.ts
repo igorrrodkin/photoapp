@@ -206,10 +206,10 @@ export default class S3Controller {
 //   namesArray: string[]
 // ) => {
 //   const base64images = namesArray.map(async (imgName) => {
-//     const data: S3.GetObjectOutput = await s3
-//       .getObject(generateParams(params, imgName!))
-//       .promise();
-//     let buf = Buffer.from(data.Body);
+//       const data: S3.GetObjectOutput = await s3
+//           .getObject(generateParams(params, imgName!))
+//           .promise();
+//     let buf = Buffer.from(data.Body as Readable);
 //     let base64 = buf.toString("base64");
 //     return "<img src='data:image/jpeg;base64," + base64 + "'" + "/>";
 //   });

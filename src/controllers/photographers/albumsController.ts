@@ -1,10 +1,10 @@
 import { RequestHandler } from "express";
 import Albums from "../../db/albums/albumsApi.js";
 import { catchAsync } from "../../utils/catchAsync.js";
-import { createProduct } from "../../utils/payment.js";
+// import { createProduct } from "../../utils/payment.js";
 import { extractLoginFromJWT } from "../../utils/jwt.js";
-import { albumCreation, giveAccess } from "../../dtos/interfaces.js";
-import { authClients, authPhotographers } from "../../utils/authMiddleware.js";
+import { albumCreation } from "../../dtos/interfaces.js";
+import { authPhotographers } from "../../utils/authMiddleware.js";
 import Controller from "../Controller.js";
 
 class AlbumsController extends Controller {
@@ -23,11 +23,11 @@ class AlbumsController extends Controller {
       authPhotographers,
       catchAsync(this.createAlbum)
     );
-    this.router.post(
-      "/:album/giveaccess",
-      authClients,
-      catchAsync(this.giveAccessToClients)
-    );
+    // this.router.post(
+    //   "/:album/giveaccess",
+    //   authPhotographers,
+    //   catchAsync(this.giveAccessToClients)
+    // );
   };
 
   public createAlbum: RequestHandler = async (req, res) => {
@@ -44,7 +44,7 @@ class AlbumsController extends Controller {
       });
     } else {
       const token: string = req.headers.authorization!.split(" ")[1];
-      const login: string | undefined = extractLoginFromJWT(token);
+      const login: string = extractLoginFromJWT(token);
       if (login) {
         const albumExists = await this.albums.ifAlbumExists(
           login,
@@ -55,19 +55,16 @@ class AlbumsController extends Controller {
             message: "Album with this name already exists!",
           });
         } else {
-          const [productData, priceData] = await createProduct(
-            login,
-            content.albumName,
-            content.price
-          );
+          //   const [productData, priceData] = await createProduct(
+          //     login,
+          //     content.albumName,
+          //     content.price
+          //   );
           await this.albums.createAlbumDB(
             login,
             content.albumName,
             content.location,
-            content.datapicker,
-            JSON.stringify(content.price),
-            priceData.id,
-            productData.id
+            content.datapicker
           );
           res.status(200).send({
             message: "Successfully created!",
@@ -92,7 +89,6 @@ class AlbumsController extends Controller {
             album: item.album_name,
             location: item.album_location,
             datapicker: item.datapicker,
-            price: +item.price! / 100 + "$",
           };
         });
         res.status(200).send({
@@ -110,30 +106,30 @@ class AlbumsController extends Controller {
     }
   };
 
-  public giveAccessToClients: RequestHandler = async (req, res) => {
-    const token = req.headers.authorization!.split(" ")[1];
-    const login = extractLoginFromJWT(token);
-    if (login) {
-      const album = req.params.album;
-      const body: giveAccess = req.body;
-      const clientLogins = body.giveAccessTo;
+  //   public giveAccessToClients: RequestHandler = async (req, res) => {
+  //     const token = req.headers.authorization!.split(" ")[1];
+  //     const login = extractLoginFromJWT(token);
+  //     if (login) {
+  //       const album = req.params.album;
+  //       const body: giveAccess = req.body;
+  //       const clientLogins = body.giveAccessTo;
 
-      if (!(await this.albums.ifAlbumExists(login, album))) {
-        res.status(404).send({
-          message: "Album not found",
-        });
-      } else {
-        await this.albums.giveAccessToAlbum(login, album, clientLogins);
-        res.status(200).send({
-          message: "Access is given",
-        });
-      }
-    } else {
-      res.status(403).send({
-        message: "Invalid login",
-      });
-    }
-  };
+  //       if (!(await this.albums.ifAlbumExists(login, album))) {
+  //         res.status(404).send({
+  //           message: "Album not found",
+  //         });
+  //       } else {
+  //         await this.albums.giveAccessToAlbum(login, album, clientLogins);
+  //         res.status(200).send({
+  //           message: "Access is given",
+  //         });
+  //       }
+  //     } else {
+  //       res.status(403).send({
+  //         message: "Invalid login",
+  //       });
+  //     }
+  //   };
 }
 
 export default AlbumsController;
