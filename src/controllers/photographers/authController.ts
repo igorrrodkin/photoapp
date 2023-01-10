@@ -1,5 +1,5 @@
 import { RequestHandler } from "express";
-import Photographers from "../../db/photographers/photographersApi.js";
+import Photographers from "../../db/photographers/Photographers.js";
 import { loginPhotographers } from "../../dtos/interfaces.js";
 import { signAccessTokenPhotographer } from "../../utils/jwt.js";
 import Controller from "../Controller.js";

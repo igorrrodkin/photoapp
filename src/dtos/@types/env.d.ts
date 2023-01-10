@@ -12,10 +12,16 @@ declare namespace NodeJS {
     AWS_ACCESS_KEY_ID: string;
     AWS_SECRET_ACCESS_KEY: string;
     AWS_REGION: string;
-    BUCKET_NAME_S3: string;
     TELEGRAM_BOT_TOKEN: string;
     DEV_URL: string;
     STRIPE_SECRET: string;
     CHAT_ID_TG_BOT: string;
+    BUCKET_PHOTOS: string;
+    BUCKET_SELFIES: string;
+    BUCKET_SELFIES_MINIATURE: string;
+    BUCKET_PHOTOS_WATERMARKED: string;
+    BUCKET_PHOTOS_MINIATURE: string;
+    BUCKET_PHOTOS_MINIATURE_WATERMARKED: string;
+    BUCKET_COVERS: string;
   }
 }

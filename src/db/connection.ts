@@ -2,14 +2,14 @@ import pg from "pg";
 import "dotenv/config";
 import { PgConnector } from "drizzle-orm-pg";
 
-export type config = {
-  PORT_APP: number;
-  USER_PSQL: string;
-  HOST_PSQL: string;
-  DB_PSQL: string;
-  PASSWORD_PSQL: string;
-  PORT_PSQL: number;
-};
+// export type config = {
+//   PORT_APP: number;
+//   USER_PSQL: string;
+//   HOST_PSQL: string;
+//   DB_PSQL: string;
+//   PASSWORD_PSQL: string;
+//   PORT_PSQL: number;
+// };
 
 const pool = new pg.Pool({
   user: process.env.USER_PSQL,

@@ -1,16 +1,23 @@
 import { RequestHandler } from "express";
-import Albums from "../../db/albums/albumsApi.js";
+import Albums from "../../db/albums/Albums.js";
 import { catchAsync } from "../../utils/catchAsync.js";
-// import { createProduct } from "../../utils/payment.js";
 import { extractLoginFromJWT } from "../../utils/jwt.js";
 import { albumCreation } from "../../dtos/interfaces.js";
 import { authPhotographers } from "../../utils/authMiddleware.js";
 import Controller from "../Controller.js";
+import { dateValidator } from "../../dtos/validation/dateValidator.js";
+import S3Controller from "../../s3/S3Controller.js";
+
+// const coversBucket = process.env.BUCKET_COVERS;
 
 class AlbumsController extends Controller {
   public readonly path: string;
 
-  public constructor(path: string, public readonly albums: Albums) {
+  public constructor(
+    path: string,
+    public readonly albums: Albums,
+    public readonly s3: S3Controller
+  ) {
     super("");
     this.path = path;
     this.initializeRoutes();
@@ -24,55 +31,42 @@ class AlbumsController extends Controller {
       catchAsync(this.createAlbum)
     );
     // this.router.post(
-    //   "/:album/giveaccess",
+    //   ":album/setcover",
     //   authPhotographers,
-    //   catchAsync(this.giveAccessToClients)
+    //   catchAsync(this.setCoverPhoto)
     // );
   };
 
   public createAlbum: RequestHandler = async (req, res) => {
     const content: albumCreation = req.body;
-    // date format dd-mm-yyyy
-    const dateRegEx = /[0-9]{2}\/[0-9]{2}\/[0-9]{4}/g;
     if (!content.albumName || !content.location) {
       res.status(400).send({
         message: "Album name and location are required!",
       });
-    } else if (!content.datapicker.match(dateRegEx)) {
+    } else if (!content.datapicker.match(dateValidator)) {
       res.status(400).send({
         message: "Incorrect date format, it should be DD/MM/YYYY",
       });
     } else {
       const token: string = req.headers.authorization!.split(" ")[1];
       const login: string = extractLoginFromJWT(token);
-      if (login) {
-        const albumExists = await this.albums.ifAlbumExists(
-          login,
-          content.albumName
-        );
-        if (albumExists) {
-          res.status(400).send({
-            message: "Album with this name already exists!",
-          });
-        } else {
-          //   const [productData, priceData] = await createProduct(
-          //     login,
-          //     content.albumName,
-          //     content.price
-          //   );
-          await this.albums.createAlbumDB(
-            login,
-            content.albumName,
-            content.location,
-            content.datapicker
-          );
-          res.status(200).send({
-            message: "Successfully created!",
-          });
-        }
+      const albumExists = await this.albums.ifAlbumExists(
+        login,
+        content.albumName
+      );
+      if (albumExists) {
+        res.status(400).send({
+          message: "Album with this name already exists!",
+        });
       } else {
-        res.status(403).send({
-          message: "Invalid login",
+        await this.albums.createAlbumDB(
+          login,
+          content.albumName,
+          content.location,
+          content.datapicker
+        );
+        res.status(200).send({
+          message: "Successfully created!",
         });
       }
     }
@@ -81,55 +75,39 @@ class AlbumsController extends Controller {
   public showAlbums: RequestHandler = async (req, res) => {
     const token = req.headers.authorization!.split(" ")[1];
     const login = extractLoginFromJWT(token);
-    if (login) {
-      const content = await this.albums.listAlbums(login);
-      if (content.length) {
-        const mappedContent = content.map((item) => {
-          return {
-            album: item.album_name,
-            location: item.album_location,
-            datapicker: item.datapicker,
-          };
-        });
-        res.status(200).send({
-          content: mappedContent,
-        });
-      } else {
-        res.status(200).send({
-          message: "You haven't any albums",
-        });
-      }
+    const content = await this.albums.listAlbums(login);
+    if (content.length) {
+      res.status(200).send({
+        content,
+      });
     } else {
-      res.status(403).send({
-        message: "Invalid login",
+      res.status(200).send({
+        message: "You haven't any albums",
       });
     }
   };
 
-  //   public giveAccessToClients: RequestHandler = async (req, res) => {
-  //     const token = req.headers.authorization!.split(" ")[1];
-  //     const login = extractLoginFromJWT(token);
-  //     if (login) {
-  //       const album = req.params.album;
-  //       const body: giveAccess = req.body;
-  //       const clientLogins = body.giveAccessTo;
-
-  //       if (!(await this.albums.ifAlbumExists(login, album))) {
-  //         res.status(404).send({
-  //           message: "Album not found",
-  //         });
-  //       } else {
-  //         await this.albums.giveAccessToAlbum(login, album, clientLogins);
-  //         res.status(200).send({
-  //           message: "Access is given",
-  //         });
-  //       }
-  //     } else {
-  //       res.status(403).send({
-  //         message: "Invalid login",
-  //       });
-  //     }
-  //   };
+  // public setCoverPhoto: RequestHandler = async (req, res) => {
+  //   const albumName = req.params.album;
+  //   const token = req.headers.authorization!.split(" ")[1];
+  //   const login = extractLoginFromJWT(token);
+  //   if (!(await this.albums.ifAlbumExists(login, albumName))) {
+  //     res.status(400).send({
+  //       message: "Album not exists",
+  //     });
+  //   } else {
+  //     const coverPresigned = await this.s3.generatePhotosPresigned(
+  //       coversBucket,
+  //       login,
+  //       albumName,
+  //       req.body.contentType,
+  //       "filename2"
+  //     );
+  //     res.status(200).send({
+  //       coverPresigned,
+  //     });
+  //   }
+  // };
 }
 
 export default AlbumsController;

@@ -1,5 +1,4 @@
 import { pgTable, text, numeric, boolean, InferModel } from "drizzle-orm-pg";
-import "dotenv/config";
 
 export const clients = pgTable("clients", {
   phoneNumber: text("phone_number"),
@@ -9,6 +8,7 @@ export const clients = pgTable("clients", {
   otpDepartureDate: text("otp_departure_date"),
   email: text("email"),
   uuid: text("uuid"),
+  availablePhotos: text("available_photos"),
 });
 
 export type Client = InferModel<typeof clients>;

@@ -2,8 +2,6 @@ import { PgDatabase } from "drizzle-orm-pg";
 import { eq } from "drizzle-orm/expressions.js";
 import { photographers } from "./schema.js";
 
-// export type Photographer = InferModel<typeof photographers>;
-
 export default class Photographers {
   public constructor(private db: PgDatabase) {}
 

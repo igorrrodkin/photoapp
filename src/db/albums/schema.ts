@@ -1,5 +1,4 @@
 import { pgTable, text } from "drizzle-orm-pg";
-import "dotenv/config";
 
 export const albums = pgTable("albums", {
   login: text("login"),

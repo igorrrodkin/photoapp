@@ -8,21 +8,26 @@ import SelfiesController from "./controllers/clients/SelfiesController.js";
 import AlbumsController from "./controllers/photographers/AlbumsController.js";
 import AuthController from "./controllers/photographers/AuthController.js";
 import ImagesController from "./controllers/photographers/ImagesController.js";
-import Clients from "./db/clients/clientsApi.js";
+import Clients from "./db/clients/Clients.js";
 import { db } from "./db/connection.js";
-import Photographers from "./db/photographers/photographersApi.js";
-import Albums from "./db/albums/albumsApi.js";
+import Photographers from "./db/photographers/Photographers.js";
+import Albums from "./db/albums/Albums.js";
 import { S3 } from "aws-sdk";
 import { connectS3 } from "./s3/s3connection.js";
-import S3Controller from "./s3/s3api.js";
+import S3Controller from "./s3/S3Controller.js";
+import Selfies from "./db/selfies/Selfies.js";
+import SettingsController from "./controllers/clients/SettingsController.js";
+import Photos from "./db/photos/Photos.js";
 const main = async () => {
   const client: PgDatabase = await db.connect();
   const s3client: S3 = connectS3();
   const controllers = [
-    new AuthControllerClients("/clients", new Clients(client)),
+    new AuthControllerClients("/clients/auth", new Clients(client)),
     new DashboardController(
       "/clients/dashboard",
       new Albums(client),
+      new Clients(client),
+      new Photos(client),
       new S3Controller(s3client)
     ),
     new SelfiesController(
@@ -30,16 +35,27 @@ const main = async () => {
       new Clients(client),
       new S3Controller(s3client)
     ),
+    new SettingsController(
+      "/clients/settings",
+      new Clients(client),
+      new Selfies(client)
+    ),
     // new PaymentController(
     //   "/clients/payment",
     //   new Albums(client),
     //   new S3Controller(s3client)
     // ),
     new AuthController("/photographers", new Photographers(client)),
-    new AlbumsController("/photographers/albums", new Albums(client)),
+    new AlbumsController(
+      "/photographers/albums",
+      new Albums(client),
+      new S3Controller(s3client)
+    ),
     new ImagesController(
       "/photographers/images",
       new Albums(client),
+      new Clients(client),
+      new Photos(client),
       new S3Controller(s3client)
     ),
   ];
@@ -51,12 +67,3 @@ const main = async () => {
 };
 
 main();
-
-/* логин-регистрация одно и то же - 
-клиент вводит номер телефона - поиск в базе 
-- если его нет -
- ввести этот номер в постгрес вместо логина
- Отправлять в телеграм ОТП для этого номера  и юзать в JWT номер телефона */
-/*
-В эндпоинте селфис дать возможность 
-*/

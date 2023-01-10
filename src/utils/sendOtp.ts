@@ -17,11 +17,11 @@ export const sendOneTimePassword = (phoneNumber: string) => {
   return generatedOTP;
 };
 
-export const changeNumberOtp = (oldNumber: string, phoneNumber: string) => {
+export const changeNumberOtp = (newNumber: string) => {
   const generatedOTP = generateOTP();
   bot.telegram.sendMessage(
     chatId,
-    `OTP change phone number\n Old number:${oldNumber}\nNew number:${phoneNumber}\nOTP:${generatedOTP}`
+    `OTP for changing phone number\nNew number:${newNumber}\nOTP:${generatedOTP}`
   );
   return generatedOTP;
 };

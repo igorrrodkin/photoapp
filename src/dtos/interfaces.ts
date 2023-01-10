@@ -14,7 +14,6 @@ export interface albumCreation {
   albumName: string;
   location: string;
   datapicker: string;
-  price: number /* in cents */;
 }
 
 export interface giveAccess {
@@ -33,6 +32,7 @@ export interface changeNumberInterface {
 export interface profileContent {
   name: string | null;
   email: string | null;
+  phoneNumber: string | null;
 }
 export interface reqPresignedUrl {
   contentType: string;
@@ -46,4 +46,13 @@ export interface reqPresignedUrl {
 export interface otpData {
   otp: string | null;
   date: string | null;
+}
+
+export interface photoContent {
+  presignedMiniWatermark: string | null;
+  presignedWatermark?: string | null;
+  albumName: string | null;
+}
+export interface photoMiniPresigned {
+  albumName: string[];
 }

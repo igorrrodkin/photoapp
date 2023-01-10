@@ -1,0 +1,58 @@
+org: igorrrodkin
+# console: true
+service: photodrop
+
+frameworkVersion: "3"
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  vpc:
+    securityGroupIds:
+      - sg-035d0078175b4f2a8
+    subnetIds:
+      - subnet-00aa928fde319c8e0
+      - subnet-02f5ba60534986058
+      - subnet-06e239e627b74e720
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "rds:*"
+        - "ec2:DescribeNetworkInterfaces"
+        - "ec2:CreateNetworkInterface"
+        - "ec2:DeleteNetworkInterface"
+        - "ec2:DescribeInstances"
+        - "ec2:AttachNetworkInterface"
+      Resource: "*"
+
+    - Effect: "Allow"
+      Action:
+        - s3:*
+        - "s3:GetObject"
+        - "s3:PutObject"
+      Resource:
+        "*"
+        # Fn::Join:
+        #   - ""
+        #   - - "arn:aws:s3:::"
+        #     - "photodrop-selfies"
+        #     - "/*"
+
+functions:
+  selfiesLambda:
+    handler: src/lambdas/selfies.handler
+    events:
+      - s3:
+          bucket: photodrop-selfies
+          event: s3:ObjectCreated:*
+  # photosLambda:
+  #   handler: src/lambdas/photos.handler
+  #   events:
+  #     - s3:
+  #         bucket: photodrop-default1
+  #         event: s3:ObjectCreated:*
+resources:
+  Resources:
+
+plugins:
+  - serverless-plugin-typescript
