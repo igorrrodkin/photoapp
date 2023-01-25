@@ -5,61 +5,69 @@ import { photos } from "./schema.js";
 export default class Photos {
   public constructor(private db: PgDatabase) {}
 
-  public getPresignedURLs = async (
-    loginPhotographer: string,
-    albumName: string
-  ) => {
-    const content = await this.db
+  public getClientPhotos = async (clientUUID: string) => {
+    const clientContent = await this.db
       .select(photos)
-      .fields({
-        presigned: photos.presignedNormal,
-        presignedMini: photos.presignedMini,
-        presignedWatermark: photos.presignedWatermark,
-        presignedMiniWatermark: photos.presignedMiniWatermark,
-      })
+      .where(eq(photos.accessClients, clientUUID));
+    return clientContent;
+  };
+
+  public getClientPhotosOneAlbum = async (
+    clientUUID: string,
+    albumUUID: string
+  ) => {
+    const clientContent = await this.db
+      .select(photos)
       .where(
         and(
-          eq(photos.photographer, loginPhotographer),
-          eq(photos.albumName, albumName)
+          eq(photos.accessClients, clientUUID),
+          eq(photos.albumUuid, albumUUID)
         )
       );
-
-    return content;
+    return clientContent;
   };
 
-  public getContentByPhotoUuidWatermarked = async (photoUuid: string) => {
-    const content = await this.db
+  public getAlbumCover = async (albumUUID: string) => {
+    const coverContent = await this.db
       .select(photos)
-      .fields({
-        albumName: photos.albumName,
-        // presigned: photos.presignedNormal,
-        // presignedMini: photos.presignedMini,
-        presignedWatermark: photos.presignedWatermark,
-        presignedMiniWatermark: photos.presignedMiniWatermark,
-      })
-      .where(eq(photos.photoUuid, photoUuid));
-    return content[0];
+      .fields({ presignedCover: photos.presignedCover })
+      .where(and(eq(photos.albumUuid, albumUUID), eq(photos.coverPhoto, true)));
+    return coverContent[0].presignedCover;
   };
 
-  public getContentByPhotoUuidNormal = async (photoUuid: string) => {
-    const content = await this.db
-      .select(photos)
-      .fields({
-        albumName: photos.albumName,
-        presigned: photos.presignedNormal,
-        presignedMini: photos.presignedMini,
-        //   presignedWatermark: photos.presignedWatermark,
-        //   presignedMiniWatermark: photos.presignedMiniWatermark,
-      })
-      .where(eq(photos.photoUuid, photoUuid));
-    return content[0];
+  public insertPhotoInformation = async (
+    photographerLogin: string,
+    photoId: string,
+    albumId: string,
+    isCoverPhoto: boolean,
+    signedUrl: string,
+    signedUrlMiniature: string,
+    signedUrlMiniatureWatermarked: string,
+    signedUrlWatermarked: string,
+    signedUrlCover: string
+  ) => {
+    await this.db.insert(photos).values({
+      photographer: photographerLogin,
+      photoUuid: photoId,
+      albumUuid: albumId,
+      coverPhoto: isCoverPhoto,
+      presignedNormal: signedUrl,
+      presignedMini: signedUrlMiniature,
+      presignedMiniWatermark: signedUrlMiniatureWatermarked,
+      presignedWatermark: signedUrlWatermarked,
+      presignedCover: signedUrlCover,
+    });
   };
 
-  public getContentByPhotoUuid = async (photoUuid: string) => {
+  public checkIfAlbumContainsPhotos = async (albumId: string) => {
     const content = await this.db
       .select(photos)
-      .where(eq(photos.photoUuid, photoUuid));
-    return content[0];
+      .where(eq(photos.albumUuid, albumId));
+    if (content.length) {
+      return true;
+    } else {
+      return false;
+    }
   };
 
   public giveAccessToPhoto = async (clientUuid: string, photoUuid: string) => {
@@ -67,7 +75,6 @@ export default class Photos {
       .select(photos)
       .where(eq(photos.photoUuid, photoUuid));
     const imageRow = content[0];
-    // return imageRow;
     imageRow.accessClients = clientUuid;
     await this.db.insert(photos).values(imageRow);
   };

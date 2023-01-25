@@ -47,6 +47,7 @@ class AuthControllerClients extends Controller {
       const otpDepartureDate: number = +otpContent.date!;
       if (now - otpDepartureDate <= 180000) {
         const uuid = await this.clients.getUUIDbyNumber(phoneNumber);
+        await this.clients.setResendOTPavailable(phoneNumber);
         res.status(200).send({
           message: "Successfully logged in",
           access_token: signAccessTokenClient(uuid!),
@@ -72,6 +73,7 @@ class AuthControllerClients extends Controller {
     if (sendOtpAvailable) {
       const otp = sendOneTimePassword(phoneNumber);
       await this.clients.updateOTPbyNumber(phoneNumber, otp);
+      await this.clients.setResendOTPinavailable(phoneNumber);
       res.status(200).send({
         message: "OTP is resent",
       });

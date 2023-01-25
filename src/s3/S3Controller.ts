@@ -1,5 +1,5 @@
 import { S3 } from "aws-sdk";
-import { v4 } from "uuid";
+// import { v4 } from "uuid";
 // interface listObjectsParams {
 //   Bucket: string;
 //   Prefix: string;
@@ -8,34 +8,7 @@ import { v4 } from "uuid";
 export default class S3Controller {
   public constructor(private s3: S3) {}
 
-  // public getObjectBody = async (
-  //   params: listObjectsParams,
-  //   imageName: string
-  // ) => {
-  //   let validImgName;
-  //   const imgNameArr = imageName.split(".");
-  //   const imgExtension = imgNameArr[imgNameArr.length - 1];
-  //   if (
-  //     imgExtension == "png" ||
-  //     imgExtension == "jpg" ||
-  //     imgExtension == "jpeg"
-  //   ) {
-  //     validImgName = imageName;
-  //   } else {
-  //     validImgName = `${imageName}.jpeg`;
-  //   }
-  //   const key = `${params.Prefix}/${validImgName}`;
-  //   const validParams = {
-  //     Bucket: `images-photo-app`,
-  //     Key: key,
-  //   };
-  //   const data: S3.GetObjectOutput = await this.s3
-  //     .getObject(validParams)
-  //     .promise();
-  //   return data.Body;
-  // };
-
-  public generatePhotosPresigned = async (
+  public generatePhotosPresignedPut = async (
     bucketName: string,
     loginPhotographer: string,
     albumName: string,
@@ -44,7 +17,7 @@ export default class S3Controller {
   ) => {
     const params = {
       Bucket: bucketName,
-      Key: `${loginPhotographer}/${albumName}/${v4()}_${filename}.${
+      Key: `${loginPhotographer}/${albumName}/${filename}.${
         contentType.split("/")[1]
       }`,
       ContentType: contentType,
@@ -53,15 +26,37 @@ export default class S3Controller {
     const signedUrl = this.s3.getSignedUrl("putObject", params);
     return signedUrl;
   };
+  public generatePresignedGet = (bucketName: string, key: string) => {
+    const params = {
+      Bucket: bucketName,
+      Key: key,
+      Expires: 604800,
+    };
+    const signedUrl = this.s3.getSignedUrl("getObject", params);
+    return signedUrl;
+  };
+
+  public putImage = async (bucketName: string, key: string, body: S3.Body) => {
+    await this.s3
+      .putObject({
+        Body: body,
+        Bucket: bucketName,
+        Key: key,
+        ContentType: "image",
+      })
+      .promise();
+    return;
+  };
 
   public generateSefiesPresigned = async (
     bucketName: string,
     clientId: string,
-    contentType: string
+    contentType: string,
+    photoUuid: string
   ) => {
     const params = {
       Bucket: bucketName,
-      Key: `${clientId}/${v4()}.${contentType.split("/")[1]}`,
+      Key: `${clientId}/${photoUuid}.${contentType.split("/")[1]}`,
 
       ContentType: contentType,
       Tagging: "random=random",

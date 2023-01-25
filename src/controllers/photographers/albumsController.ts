@@ -7,7 +7,8 @@ import { authPhotographers } from "../../utils/authMiddleware.js";
 import Controller from "../Controller.js";
 import { dateValidator } from "../../dtos/validation/dateValidator.js";
 import S3Controller from "../../s3/S3Controller.js";
-
+import Photos from "../../db/photos/Photos.js";
+import { v4 } from "uuid";
 // const coversBucket = process.env.BUCKET_COVERS;
 
 class AlbumsController extends Controller {
@@ -16,6 +17,7 @@ class AlbumsController extends Controller {
   public constructor(
     path: string,
     public readonly albums: Albums,
+    public readonly photos: Photos,
     public readonly s3: S3Controller
   ) {
     super("");
@@ -30,11 +32,6 @@ class AlbumsController extends Controller {
       authPhotographers,
       catchAsync(this.createAlbum)
     );
-    // this.router.post(
-    //   ":album/setcover",
-    //   authPhotographers,
-    //   catchAsync(this.setCoverPhoto)
-    // );
   };
 
   public createAlbum: RequestHandler = async (req, res) => {
@@ -63,7 +60,8 @@ class AlbumsController extends Controller {
           login,
           content.albumName,
           content.location,
-          content.datapicker
+          content.datapicker,
+          v4()
         );
         res.status(200).send({
           message: "Successfully created!",
@@ -75,10 +73,38 @@ class AlbumsController extends Controller {
   public showAlbums: RequestHandler = async (req, res) => {
     const token = req.headers.authorization!.split(" ")[1];
     const login = extractLoginFromJWT(token);
-    const content = await this.albums.listAlbums(login);
-    if (content.length) {
+    const albumContent = await this.albums.listAlbums(login);
+    if (albumContent.length) {
+      const albumContentMapped = albumContent.map((item) => {
+        return {
+          album: item.albumName,
+          location: item.albumLocation,
+        };
+      });
+      // const fullContent = await this.photos.getPhotographerContent(login);
+      // const mappedContent = albumContent.map((item) => {
+      //   const albumContent = fullContent.filter(
+      //     (element) =>
+      //       element.albumUuid == item.albumUuid && element.accessClients == null
+      //   );
+      //   const coverPresigned = albumContent.find(
+      //     (data) => data.coverPhoto == true && data.accessClients == null
+      //   )?.presignedCover;
+      //   const presignedMiniForAlbum = albumContent.map((content) => {
+      //     return content.presignedMini;
+      //   });
+      //   const presignedForAlbum = albumContent.map((content) => {
+      //     return content.presignedNormal;
+      //   });
+      //   return {
+      //     album: item.albumName,
+      //     coverPhoto: coverPresigned,
+      //     photosDefault: presignedForAlbum,
+      //     photosMini: presignedMiniForAlbum,
+      //   };
+      // });
       res.status(200).send({
-        content,
+        content: albumContentMapped,
       });
     } else {
       res.status(200).send({
@@ -86,28 +112,6 @@ class AlbumsController extends Controller {
       });
     }
   };
-
-  // public setCoverPhoto: RequestHandler = async (req, res) => {
-  //   const albumName = req.params.album;
-  //   const token = req.headers.authorization!.split(" ")[1];
-  //   const login = extractLoginFromJWT(token);
-  //   if (!(await this.albums.ifAlbumExists(login, albumName))) {
-  //     res.status(400).send({
-  //       message: "Album not exists",
-  //     });
-  //   } else {
-  //     const coverPresigned = await this.s3.generatePhotosPresigned(
-  //       coversBucket,
-  //       login,
-  //       albumName,
-  //       req.body.contentType,
-  //       "filename2"
-  //     );
-  //     res.status(200).send({
-  //       coverPresigned,
-  //     });
-  //   }
-  // };
 }
 
 export default AlbumsController;

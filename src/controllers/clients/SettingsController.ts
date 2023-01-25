@@ -27,7 +27,7 @@ class SettingsController extends Controller {
   }
 
   public initializeRoutes = () => {
-    this.router.get("/", authClients, this.getClientData);
+    this.router.get("/getme", authClients, this.getClientData);
     this.router.post("/setname", authClients, catchAsync(this.setClientName));
     this.router.post("/setemail", authClients, catchAsync(this.setClientEmail));
     this.router.post(
@@ -123,14 +123,16 @@ class SettingsController extends Controller {
     const token = req.headers.authorization!.split(" ")[1];
     const uuidClient = extractClientUUIDFromJWT(token);
     const data = await this.clients.getClientData(uuidClient);
-    const frontPhoto = await this.selfies.getFrontPhotoPresignedMini(
+    const selfiesContent = await this.selfies.getFrontPhotoPresigned(
       uuidClient
     );
     res.status(200).send({
       message: "Client profile",
+      phoneNumber: data.phoneNumber,
       email: data.email,
       name: data.name,
-      presignedFront: frontPhoto,
+      // presignedMini: selfiesContent?.presignedMiniature,
+      presigned: selfiesContent?.presignedDefault,
     });
   };
 }

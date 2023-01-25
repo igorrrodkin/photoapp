@@ -1,58 +1,34 @@
-org: igorrrodkin
-# console: true
-service: photodrop
+service: photodrop-photos-trigger
 
 frameworkVersion: "3"
-
+useDotenv: true
 provider:
   name: aws
+  environment: ${file(env.json)}
   runtime: nodejs14.x
-  vpc:
-    securityGroupIds:
-      - sg-035d0078175b4f2a8
-    subnetIds:
-      - subnet-00aa928fde319c8e0
-      - subnet-02f5ba60534986058
-      - subnet-06e239e627b74e720
-  iamRoleStatements:
-    - Effect: "Allow"
-      Action:
-        - "rds:*"
-        - "ec2:DescribeNetworkInterfaces"
-        - "ec2:CreateNetworkInterface"
-        - "ec2:DeleteNetworkInterface"
-        - "ec2:DescribeInstances"
-        - "ec2:AttachNetworkInterface"
-      Resource: "*"
+  region: us-east-1
 
-    - Effect: "Allow"
+  iamRoleStatements:
+    - Effect: Allow
       Action:
         - s3:*
-        - "s3:GetObject"
-        - "s3:PutObject"
       Resource:
-        "*"
-        # Fn::Join:
-        #   - ""
-        #   - - "arn:aws:s3:::"
-        #     - "photodrop-selfies"
-        #     - "/*"
-
+        - "arn:aws:s3:::*"
 functions:
-  selfiesLambda:
-    handler: src/lambdas/selfies.handler
+  photoTrigger:
+    handler: src/lambdas/photos.handler
+    timeout: 60
     events:
       - s3:
-          bucket: photodrop-selfies
+          bucket: photodrop-photos-default
           event: s3:ObjectCreated:*
-  # photosLambda:
-  #   handler: src/lambdas/photos.handler
-  #   events:
-  #     - s3:
-  #         bucket: photodrop-default1
-  #         event: s3:ObjectCreated:*
-resources:
-  Resources:
+  selfiesTrigger:
+    handler: src/lambdas/selfies.handler
+    timeout: 60
+    events:
+      - s3:
+          bucket: photodrop-selfies-default
+          event: s3:ObjectCreated:*
 
 plugins:
   - serverless-plugin-typescript

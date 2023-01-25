@@ -2,5 +2,5 @@ dist
 .env
 node_modules
 *.d.ts
-lambdas
 .serverless
+env.json

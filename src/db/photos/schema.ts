@@ -2,7 +2,7 @@ import { pgTable, text, boolean } from "drizzle-orm-pg";
 
 export const photos = pgTable("photos", {
   photographer: text("photographer"),
-  albumName: text("album_name"),
+  albumUuid: text("album_id"),
   presignedNormal: text("presigned_normal"),
   presignedMini: text("presigned_mini"),
   presignedWatermark: text("presigned_watermark"),

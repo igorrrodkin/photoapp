@@ -5,9 +5,9 @@ import S3Controller from "../../s3/S3Controller.js";
 import { catchAsync } from "../../utils/catchAsync.js";
 import Controller from "../Controller.js";
 import { authClients } from "../../utils/authMiddleware.js";
+import { v4 } from "uuid";
 
 const bucket_selfies = process.env.BUCKET_SELFIES;
-const bucket_selfies_miniatures = process.env.BUCKET_SELFIES_MINIATURE;
 
 class SelfiesController extends Controller {
   public readonly path: string;
@@ -36,18 +36,13 @@ class SelfiesController extends Controller {
     const signedUrl = await this.s3.generateSefiesPresigned(
       bucket_selfies,
       uuid,
-      req.body.contentType
+      req.body.photoExtension,
+      v4()
     );
-    const signedUrlMini = await this.s3.generateSefiesPresigned(
-      bucket_selfies_miniatures,
-      uuid,
-      req.body.contentType
-    );
+
     res.status(200).json({
-      message:
-        "Presigned URLs for loading photo in the valid format + rounded miniature",
+      message: "Presigned URL",
       signedUrl,
-      signedUrlMini,
     });
   };
 }

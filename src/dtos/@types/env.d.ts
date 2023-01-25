@@ -18,10 +18,10 @@ declare namespace NodeJS {
     CHAT_ID_TG_BOT: string;
     BUCKET_PHOTOS: string;
     BUCKET_SELFIES: string;
-    BUCKET_SELFIES_MINIATURE: string;
     BUCKET_PHOTOS_WATERMARKED: string;
     BUCKET_PHOTOS_MINIATURE: string;
     BUCKET_PHOTOS_MINIATURE_WATERMARKED: string;
     BUCKET_COVERS: string;
+    STRIPE_PRICE_ID: string;
   }
 }

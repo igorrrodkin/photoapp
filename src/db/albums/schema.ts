@@ -5,4 +5,5 @@ export const albums = pgTable("albums", {
   albumName: text("album_name"),
   albumLocation: text("album_location"),
   datapicker: text("datapicker"),
+  albumId: text("album_uuid"),
 });

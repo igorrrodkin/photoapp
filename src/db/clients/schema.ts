@@ -8,7 +8,6 @@ export const clients = pgTable("clients", {
   otpDepartureDate: text("otp_departure_date"),
   email: text("email"),
   uuid: text("uuid"),
-  availablePhotos: text("available_photos"),
 });
 
 export type Client = InferModel<typeof clients>;
